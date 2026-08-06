@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#fffaf0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Our Shopping List">
+  <meta name="description" content="A simple, accessible, offline household shopping list.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+  <link rel="icon" href="./icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Our Shopping List</title>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <div id="app" class="app-shell">
+    <header class="app-header" id="app-header">
+      <button class="icon-button header-back is-hidden" id="back-button" type="button" aria-label="Go back">
+        <span aria-hidden="true">‹</span>
+      </button>
+      <button class="brand-button" id="home-button" type="button" aria-label="Go to Home">
+        <span class="brand-mark" aria-hidden="true">🛍️</span>
+        <span class="brand-copy">
+          <strong id="header-title">Our Shopping List</strong>
+          <small id="header-subtitle">Easy to read. Easy to use.</small>
+        </span>
+      </button>
+      <button class="icon-button header-settings" id="settings-button" type="button" aria-label="Open Settings">
+        <span aria-hidden="true">⚙️</span>
+      </button>
+    </header>
+
+    <div class="update-region" id="update-region" aria-live="polite"></div>
+    <main id="main-content" tabindex="-1"></main>
+    <div class="toast-region" id="toast-region" aria-live="assertive" aria-atomic="true"></div>
+  </div>
+
+  <dialog id="confirm-dialog" class="app-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <form method="dialog" class="dialog-card">
+      <h2 id="confirm-title">Please confirm</h2>
+      <p id="confirm-message"></p>
+      <div class="dialog-actions">
+        <button class="button button-secondary" value="cancel">Cancel</button>
+        <button class="button button-danger" id="confirm-action" value="confirm">Confirm</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="custom-item-dialog" class="app-dialog" aria-labelledby="custom-item-dialog-title" aria-describedby="custom-item-dialog-help">
+    <form method="dialog" class="dialog-card form-card" id="custom-item-form">
+      <input id="custom-item-id" name="id" type="hidden">
+      <h2 id="custom-item-dialog-title">Add Custom Item</h2>
+      <p class="form-help" id="custom-item-dialog-help">Add something not already in the list.</p>
+      <label>
+        <span>Item name</span>
+        <input id="custom-item-name" name="name" type="text" maxlength="80" autocomplete="off" required>
+      </label>
+      <label>
+        <span>Category</span>
+        <select id="custom-item-category" name="categoryId" required></select>
+      </label>
+      <fieldset>
+        <legend>Store</legend>
+        <div class="segmented-control">
+          <label><input type="radio" name="store" value="Either" checked><span>Either</span></label>
+          <label><input type="radio" name="store" value="Coles"><span>Coles</span></label>
+          <label><input type="radio" name="store" value="Woolworths"><span>Woolworths</span></label>
+        </div>
+      </fieldset>
+      <label class="check-card" id="custom-item-add-now-row">
+        <input id="custom-item-add-now" name="addNow" type="checkbox" checked>
+        <span aria-hidden="true" class="big-check"></span>
+        <span>Add to my current list</span>
+      </label>
+      <div class="dialog-actions stack-on-small">
+        <button class="button button-primary" id="save-custom-item" value="default">Save Item</button>
+        <button class="button button-secondary" value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="person-dialog" class="app-dialog" aria-labelledby="person-dialog-title">
+    <form method="dialog" class="dialog-card form-card" id="person-form">
+      <input id="person-id" name="id" type="hidden">
+      <input id="person-photo-data" name="photo" type="hidden">
+      <h2 id="person-dialog-title">Add Person</h2>
+      <div class="photo-editor">
+        <div class="person-avatar person-avatar-large" id="person-photo-preview" aria-hidden="true">👤</div>
+        <label class="button button-secondary photo-button" for="person-photo-input">Choose Photo</label>
+        <input class="visually-hidden" id="person-photo-input" type="file" accept="image/*">
+        <button class="text-button" id="remove-person-photo" type="button">Remove Photo</button>
+      </div>
+      <label>
+        <span>Name</span>
+        <input id="person-name" name="name" type="text" maxlength="60" autocomplete="name" required>
+      </label>
+      <label>
+        <span>Mobile number</span>
+        <input id="person-phone" name="phone" type="tel" maxlength="30" inputmode="tel" autocomplete="tel" placeholder="Optional">
+      </label>
+      <label class="check-card">
+        <input id="person-is-owner" name="isOwner" type="checkbox">
+        <span aria-hidden="true" class="big-check"></span>
+        <span>This is my profile</span>
+      </label>
+      <p class="form-help">Your own profile appears in the same Send area, so you can send a list between your devices.</p>
+      <div class="dialog-actions stack-on-small">
+        <button class="button button-primary" value="default">Save Person</button>
+        <button class="button button-secondary" value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <input class="visually-hidden" id="receive-file-input" type="file" accept=".shoppinglist,.json,application/json">
+  <input class="visually-hidden" id="restore-file-input" type="file" accept=".json,application/json">
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
