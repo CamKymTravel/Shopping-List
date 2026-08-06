@@ -26,7 +26,7 @@ const personPhotoInput = document.querySelector("#person-photo-input");
 const receiveFileInput = document.querySelector("#receive-file-input");
 const restoreFileInput = document.querySelector("#restore-file-input");
 const updateRegion = document.querySelector("#update-region");
-const APP_BUILD = "0.6.0";
+const APP_BUILD = "0.6.1";
 
 const state = {
   route: "home",
@@ -495,6 +495,7 @@ async function renderSettings() {
         <button class="settings-navigation-card" data-route="data-tools"><span class="settings-card-icon">💾</span><span><strong>Backup and Restore</strong><small>Export one complete backup or replace from a saved backup.</small></span><span>›</span></button>
         <button class="settings-navigation-card" data-route="accessibility"><span class="settings-card-icon">👓</span><span><strong>Accessibility and PIN</strong><small>Large text is on • Settings PIN ${pinState.enabled ? "is on" : "is off"}</small></span><span>›</span></button>
       </div>
+      <div class="sticky-actions"><button class="button button-success button-wide" data-route="home">Return to Shopping List</button></div>
       <p class="build-label">Version 1 • Build ${APP_BUILD}</p>
     </section>`;
 }
@@ -512,6 +513,7 @@ async function renderPeople() {
         </article>`).join("") : `<div class="empty-card"><div class="empty-icon">👥</div><h2>No people yet</h2><p>Start by adding your own profile.</p><button class="button button-primary" data-add-person>Add My Profile</button></div>`}
       </div>
       <div class="notice-card"><strong>Sending to yourself is supported</strong><span>Add the same owner profile on each device, then use Message or AirDrop to deliberately transfer a list.</span></div>
+      <div class="sticky-actions"><button class="button button-success button-wide" data-route="home">Return to Shopping List</button></div>
     </section>`;
 }
 
@@ -636,6 +638,7 @@ async function savePersonForm(event) {
   if (submitButton) { submitButton.disabled = true; submitButton.setAttribute("aria-busy", "true"); }
   const data = new FormData(personForm);
   try {
+    const hadOwner = Boolean(await getOwner());
     const person = await savePerson({
       id: data.get("id") || null,
       name: data.get("name"),
@@ -644,8 +647,13 @@ async function savePersonForm(event) {
       isOwner: data.get("isOwner") === "on"
     });
     personDialog.close();
-    await renderPeople();
-    showToast(`${person.name} was saved.`);
+    if (!hadOwner && person.isOwner) {
+      routeTo("home");
+      showToast(`${person.name} was saved. Your shopping list is ready.`);
+    } else {
+      await renderPeople();
+      showToast(`${person.name} was saved.`);
+    }
   } catch (error) {
     showToast(error.message);
   } finally {
@@ -905,6 +913,7 @@ backButton.addEventListener("click", () => {
     return renderAddItems();
   }
   const parentRoutes = {
+    settings: "home",
     send: "transfer", receive: "transfer", "receive-preview": "receive", "receive-success": "transfer",
     people: "settings", "custom-items": "settings", "data-tools": "settings", accessibility: "settings"
   };
