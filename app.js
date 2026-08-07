@@ -27,7 +27,7 @@ const personPhotoInput = document.querySelector("#person-photo-input");
 const receiveFileInput = document.querySelector("#receive-file-input");
 const restoreFileInput = document.querySelector("#restore-file-input");
 const updateRegion = document.querySelector("#update-region");
-const APP_BUILD = "0.6.6";
+const APP_BUILD = "0.6.8";
 
 const state = {
   route: "home",
@@ -35,6 +35,7 @@ const state = {
   selectedCategoryId: null,
   itemSearch: "",
   categoryEditMode: false,
+  statusFilter: "active",
   settingsUnlocked: false,
   pendingTransfer: null,
   pendingTransferPreview: null,
@@ -48,6 +49,7 @@ const ROUTES = {
   home: { title: "Our Shopping List", subtitle: "Easy to read. Easy to use.", render: renderHome },
   add: { title: "My Weekly List", subtitle: "Tap items we need", render: renderAddItems },
   shopping: { title: "Shopping List", subtitle: "Everything still needed", render: renderShopping },
+  status: { title: "This Week’s Shop", subtitle: "See items by shopping status", render: renderStatusBreakdown },
   meals: { title: "Meal Ideas", subtitle: "Shared by everyone", render: renderMeals },
   transfer: { title: "Send or Receive", subtitle: "Simple list transfer", render: renderTransfer },
   send: { title: "Send My List", subtitle: "Text message or copy", render: renderSend },
@@ -66,6 +68,33 @@ function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>'"]/g, character => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;"
   }[character]));
+}
+
+const SHOP_STORES = ["Coles", "Woolworths", "Aldi", "Either"];
+
+function storeDisplayName(store) {
+  return store === "Either" ? "Any Store" : store === "Aldi" ? "ALDI" : store;
+}
+
+function storeBrandMarkup(store, compact = false) {
+  const safeStore = SHOP_STORES.includes(store) ? store : "Either";
+  if (safeStore === "Either") {
+    return `<span class="store-brand-badge store-brand-any ${compact ? "is-compact" : ""}"><span class="store-any-icon" aria-hidden="true">🛒</span><span>Any Store</span></span>`;
+  }
+  const asset = safeStore === "Coles" ? "coles-logo.svg" : safeStore === "Woolworths" ? "woolworths-logo.svg" : "aldi-logo.png";
+  return `<span class="store-brand-badge store-brand-${safeStore.toLowerCase()} ${compact ? "is-compact" : ""}"><img src="./${asset}" alt="${escapeHTML(storeDisplayName(safeStore))}"></span>`;
+}
+
+function storeChoiceButtons(itemId, currentStore) {
+  const selected = SHOP_STORES.includes(currentStore) ? currentStore : "Coles";
+  return `<div class="store-choice-grid" role="group" aria-label="Choose a store">${SHOP_STORES.map(store => `
+    <button type="button" class="store-choice-button ${store === selected ? "is-selected" : ""}" data-store-choice-item="${escapeHTML(itemId)}" data-store-value="${store}" aria-pressed="${store === selected}">${storeBrandMarkup(store, true)}</button>`).join("")}</div>`;
+}
+
+function shoppingStoreMarkup(row) {
+  if (row.store !== "Different") return storeBrandMarkup(row.store, true);
+  const stores = [...new Set(row.requesterStores.map(entry => entry.store || "Either"))];
+  return `<span class="store-mixed-badge" aria-label="Different stores">${stores.map(store => storeBrandMarkup(store, true)).join("")}</span>`;
 }
 
 function safePhoto(value) {
@@ -309,9 +338,9 @@ async function renderHome() {
       <div class="summary-card">
         <h1 id="home-summary-title">This Week’s Shop</h1>
         <div class="summary-grid">
-          <div class="summary-stat need"><span>Still Need</span><strong>${summary.need}</strong></div>
-          <div class="summary-stat got"><span>Got It</span><strong>${summary.got}</strong></div>
-          <div class="summary-stat missed"><span>Couldn’t Get</span><strong>${summary.unavailable}</strong></div>
+          <button class="summary-stat need" data-summary-status="active" aria-label="View ${summary.need} items still needed"><span>Still Need</span><strong>${summary.need}</strong></button>
+          <button class="summary-stat got" data-summary-status="got" aria-label="View ${summary.got} items marked Got It"><span>Got It</span><strong>${summary.got}</strong></button>
+          <button class="summary-stat missed" data-summary-status="unavailable" aria-label="View ${summary.unavailable} items marked Couldn’t Get"><span>Couldn’t Get</span><strong>${summary.unavailable}</strong></button>
         </div>
       </div>
       ${owner ? "" : `<div class="setup-card"><strong>First time here?</strong><span>Add your name once so you can send lists between people and devices.</span><button class="button button-primary button-wide" data-route="people">Set Up My Profile</button></div>`}
@@ -325,8 +354,9 @@ async function renderHome() {
 }
 
 async function renderAddItems() {
-  const { categories, items, hiddenItems, selectedIds } = await getItemLibrary();
+  const { categories, items, hiddenItems, selectedIds, localContributions } = await getItemLibrary();
   const selectedCategory = categories.find(category => category.id === state.selectedCategoryId);
+  const localByItem = new Map((localContributions || []).map(row => [row.itemId, row]));
   if (!selectedCategory) {
     state.categoryEditMode = false;
     main.innerHTML = `
@@ -348,8 +378,10 @@ async function renderAddItems() {
   }
 
   const filter = state.itemSearch.trim().toLowerCase();
-  const categoryItems = items.filter(item => item.categoryId === selectedCategory.id && (!filter || item.name.toLowerCase().includes(filter)));
-  const removedItems = hiddenItems.filter(item => item.categoryId === selectedCategory.id);
+  const alphabetical = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+  const allCategoryItems = items.filter(item => item.categoryId === selectedCategory.id).sort(alphabetical);
+  const categoryItems = allCategoryItems.filter(item => !filter || item.name.toLowerCase().includes(filter));
+  const removedItems = hiddenItems.filter(item => item.categoryId === selectedCategory.id).sort(alphabetical);
   const editMode = state.categoryEditMode;
   main.innerHTML = `
     <section class="screen">
@@ -357,29 +389,46 @@ async function renderAddItems() {
       <div class="category-edit-heading">
         <div>
           <h1 class="section-heading">${escapeHTML(selectedCategory.name)}</h1>
-          <p class="section-subtitle">${editMode ? "Remove items you never buy, or restore them later." : "Tap an item to add it to your list."}</p>
+          <p class="section-subtitle">${editMode ? "Remove items you never buy. Items always stay in alphabetical order." : "Tap an item, then set its quantity and store here."}</p>
         </div>
         <button class="button ${editMode ? "button-success" : "button-secondary"} category-edit-button" data-toggle-category-edit>${editMode ? "✓ Done" : "✏️ Edit List"}</button>
       </div>
-      ${editMode ? `<div class="notice-card compact-notice"><strong>Editing this category</strong><span>Removing an item only hides it from this category. It does not remove anything already on the Shopping List.</span></div>` : ""}
+      ${editMode ? `<div class="notice-card compact-notice"><strong>Editing this category</strong><span>Items are automatically alphabetical. Removing an item only hides it from this category.</span></div>` : ""}
       <div class="panel" style="${categoryStyle(selectedCategory)}" aria-labelledby="selected-category-heading">
         <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${selectedCategory.emoji}</span><strong id="selected-category-heading">${escapeHTML(selectedCategory.name)}</strong><span class="panel-count">${categoryItems.length} items</span></div>
         <div class="panel-body">
           <div class="list-toolbar"><input class="search-field" id="item-search" type="search" placeholder="Search this category" value="${escapeHTML(state.itemSearch)}" aria-label="Search ${escapeHTML(selectedCategory.name)}"></div>
-          ${categoryItems.length ? categoryItems.map(item => editMode ? `
+          ${categoryItems.length ? categoryItems.map((item) => {
+            const selected = selectedIds.has(item.id);
+            const local = localByItem.get(item.id);
+            const localQuantity = local && Number.isFinite(local.explicitQuantity) && local.explicitQuantity > 0 ? Number(local.explicitQuantity) : 1;
+            const store = local?.store || item.defaultStore || "Coles";
+            if (editMode) return `
             <div class="item-row category-management-row">
-              <div class="item-copy"><div class="item-name">${escapeHTML(item.name)}</div><div class="item-meta">${item.isCustom ? "Custom item" : "Built-in item"} • ${escapeHTML(item.defaultStore)}</div></div>
+              <div class="item-copy"><div class="item-name">${escapeHTML(item.name)}</div><div class="item-meta">${item.isCustom ? "Custom item" : "Built-in item"} • ${escapeHTML(storeDisplayName(item.defaultStore || "Coles"))}</div></div>
               <div class="category-item-actions">
                 ${item.isCustom
                   ? `<button class="button button-secondary" data-edit-custom="${item.id}">Edit</button><button class="button button-danger" data-delete-custom="${item.id}">Delete</button>`
                   : `<button class="button button-danger" data-hide-preset="${item.id}">Remove</button>`}
               </div>
-            </div>` : `
-            <div class="item-row">
-              <button class="item-select" style="--accent:${selectedCategory.accent}" data-toggle-item="${item.id}" aria-pressed="${selectedIds.has(item.id)}" aria-label="${selectedIds.has(item.id) ? "Remove" : "Add"} ${escapeHTML(item.name)}">${selectedIds.has(item.id) ? "✓" : ""}</button>
+            </div>`;
+            return `
+            <div class="item-row selectable-item-row ${selected ? "is-selected" : ""}">
+              <button class="item-select" style="--accent:${selectedCategory.accent}" data-toggle-item="${item.id}" aria-pressed="${selected}" aria-label="${selected ? "Remove" : "Add"} ${escapeHTML(item.name)}">${selected ? "✓" : ""}</button>
               <div class="item-copy"><div class="item-name">${escapeHTML(item.name)}</div>${item.isCustom ? '<div class="item-meta">Custom item</div>' : ""}</div>
-              <span class="store-pill store-${escapeHTML(item.defaultStore)}">${escapeHTML(item.defaultStore)}</span>
-            </div>`).join("") : `<div class="empty-card borderless"><div class="empty-icon">${editMode ? "📝" : "🔎"}</div><h2>${editMode ? "No visible items" : "No matching items"}</h2><p>${editMode ? "Restore a removed item below or add a custom item." : "Try a different search or add a custom item."}</p></div>`}
+              ${selected ? storeBrandMarkup(store, true) : ""}
+              ${selected ? `<div class="item-entry-controls">
+                <div class="entry-control-section">
+                  <span class="entry-control-label">Quantity</span>
+                  <span class="quantity-control entry-quantity-control"><button data-quantity="${item.id}" data-delta="-1" aria-label="Reduce quantity of ${escapeHTML(item.name)}">−</button><output aria-label="Quantity of ${escapeHTML(item.name)}">${localQuantity}</output><button data-quantity="${item.id}" data-delta="1" aria-label="Increase quantity of ${escapeHTML(item.name)}">+</button></span>
+                </div>
+                <div class="entry-control-section entry-store-section">
+                  <span class="entry-control-label">Shop at</span>
+                  ${storeChoiceButtons(item.id, store)}
+                </div>
+              </div>` : ""}
+            </div>`;
+          }).join("") : `<div class="empty-card borderless"><div class="empty-icon">${editMode ? "📝" : "🔎"}</div><h2>${editMode ? "No visible items" : "No matching items"}</h2><p>${editMode ? "Restore a removed item below or add a custom item." : "Try a different search or add a custom item."}</p></div>`}
         </div>
       </div>
       ${editMode && removedItems.length ? `
@@ -419,9 +468,10 @@ async function renderShopping() {
       <button class="meal-shortcut-button" data-route="meals"><span aria-hidden="true">🍽️</span><span><strong>View Meal Ideas</strong><small>${meals.length} shared ${meals.length === 1 ? "idea" : "ideas"}</small></span><span aria-hidden="true">›</span></button>
       ${active.length ? [...grouped.entries()].map(([categoryId, rows]) => {
         const category = rows[0].category || CATEGORIES.find(row => row.id === categoryId);
+        const sortedRows = [...rows].sort((a, b) => a.item.name.localeCompare(b.item.name, undefined, { sensitivity: "base" }));
         return `<section class="panel shopping-category" style="${categoryStyle(category)}" aria-labelledby="shopping-category-${escapeHTML(category.id)}">
           <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${category.emoji}</span><strong id="shopping-category-${escapeHTML(category.id)}">${escapeHTML(category.name)}</strong><span class="panel-count">${rows.length}</span></div>
-          ${rows.map(row => renderShoppingRow(row, category)).join("")}
+          ${sortedRows.map(row => renderShoppingRow(row, category)).join("")}
         </section>`;
       }).join("") : `<div class="empty-card"><div class="empty-icon">🛒</div><h2>Your shopping list is empty</h2><p>Tap Add What We Need to choose some items.</p><button class="button button-primary" data-route="add">Add What We Need</button></div>`}
       <details class="collapsible-summary got">
@@ -436,29 +486,61 @@ async function renderShopping() {
     </section>`;
 }
 
+async function renderStatusBreakdown() {
+  const combined = await getCombinedShoppingList();
+  const status = ["active", "got", "unavailable"].includes(state.statusFilter) ? state.statusFilter : "active";
+  const labels = {
+    active: { title: "Still Need", empty: "Nothing still needed", icon: "🛒", className: "need" },
+    got: { title: "Got It", empty: "Nothing marked Got It", icon: "✓", className: "got" },
+    unavailable: { title: "Couldn’t Get", empty: "Nothing marked Couldn’t Get", icon: "✕", className: "missed" }
+  };
+  const meta = labels[status];
+  const rows = combined.filter(row => row.status === status);
+  const grouped = new Map();
+  for (const row of rows) {
+    if (!grouped.has(row.item.categoryId)) grouped.set(row.item.categoryId, []);
+    grouped.get(row.item.categoryId).push(row);
+  }
+  const orderedGroups = [...grouped.entries()].sort((a, b) => {
+    const ai = CATEGORIES.findIndex(category => category.id === a[0]);
+    const bi = CATEGORIES.findIndex(category => category.id === b[0]);
+    return ai - bi;
+  });
+
+  main.innerHTML = `
+    <section class="screen status-breakdown-screen">
+      <div class="summary-card compact-summary status-breakdown-summary ${meta.className}">
+        <h1>${escapeHTML(meta.title)}</h1>
+        <strong class="status-breakdown-count">${rows.length}</strong>
+        <p>${rows.length === 1 ? "1 item" : `${rows.length} items`}</p>
+      </div>
+      ${rows.length ? orderedGroups.map(([categoryId, groupRows]) => {
+        const category = groupRows[0].category || CATEGORIES.find(row => row.id === categoryId);
+        const sortedRows = [...groupRows].sort((a, b) => a.item.name.localeCompare(b.item.name, undefined, { sensitivity: "base" }));
+        return `<section class="panel shopping-category" style="${categoryStyle(category)}">
+          <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${category.emoji}</span><strong>${escapeHTML(category.name)}</strong><span class="panel-count">${sortedRows.length}</span></div>
+          ${status === "active"
+            ? sortedRows.map(row => renderShoppingRow(row, category)).join("")
+            : `<div class="status-list">${sortedRows.map(row => renderStatusRow(row, status)).join("")}</div>`}
+        </section>`;
+      }).join("") : `<div class="empty-card"><div class="empty-icon">${meta.icon}</div><h2>${escapeHTML(meta.empty)}</h2><p>Press Back to return to the Home screen.</p></div>`}
+    </section>`;
+}
+
 function renderShoppingRow(row, category) {
   const requesters = row.requesters.length ? row.requesters.join(" • ") : "Me";
-  const localContribution = row.contributions.find(contribution => contribution.sourceType === "local");
-  const localQuantity = localContribution && Number.isFinite(localContribution.explicitQuantity) && localContribution.explicitQuantity > 0
-    ? Number(localContribution.explicitQuantity)
-    : 1;
-  const otherStores = row.requesterStores.filter((_, index) => row.contributions[index]?.sourceType !== "local");
-  const localStoreControl = localContribution ? `<label class="store-picker"><span>My store</span><select data-store-item="${row.itemId}" data-previous-value="${escapeHTML(localContribution.store || "Either")}" aria-label="Store for ${escapeHTML(row.item.name)}"><option value="Either" ${localContribution.store === "Either" ? "selected" : ""}>Either</option><option value="Coles" ${localContribution.store === "Coles" ? "selected" : ""}>Coles</option><option value="Woolworths" ${localContribution.store === "Woolworths" ? "selected" : ""}>Woolworths</option></select></label>` : "";
-  const importedStoreDetails = otherStores.length ? `<details class="store-details"><summary>${otherStores.length === 1 ? "Other request store" : "Other request stores"}</summary><div>${otherStores.map(entry => `<span><strong>${escapeHTML(entry.name)}:</strong> ${escapeHTML(entry.store)}</span>`).join("")}</div></details>` : "";
-  const readOnlyStore = !localContribution ? (row.store === "Different" ? `<details class="store-details"><summary>Different stores</summary><div>${row.requesterStores.map(entry => `<span><strong>${escapeHTML(entry.name)}:</strong> ${escapeHTML(entry.store)}</span>`).join("")}</div></details>` : `<span class="store-pill store-${escapeHTML(row.store)}">${escapeHTML(row.store)}</span>`) : "";
-  const removeLabel = row.contributions.length === 1 ? "Remove from My List" : "Remove My Request";
-  return `<div class="shopping-row">
-    <button class="item-select" style="--accent:${category.accent}" data-status-item="${row.itemId}" data-status="got" aria-label="Mark ${escapeHTML(row.item.name)} Got It"></button>
-    <div class="item-copy">
+  const differentStores = row.store === "Different"
+    ? `<div class="shopping-store-detail">${row.requesterStores.map(entry => `${escapeHTML(entry.name)}: ${escapeHTML(storeDisplayName(entry.store))}`).join(" • ")}</div>`
+    : "";
+  return `<div class="shopping-row compact-shopping-row">
+    <button class="shopping-status-button got-status-button" style="--accent:${category.accent}" data-status-item="${row.itemId}" data-status="got" aria-label="Mark ${escapeHTML(row.item.name)} Got It"><span aria-hidden="true">✓</span><small>Got</small></button>
+    <div class="item-copy shopping-item-copy">
       <div class="item-name">${escapeHTML(row.item.name)}</div>
-      <div class="requesters">Requested by ${escapeHTML(requesters)}</div>
-      <div class="shopping-row-actions">
-        ${localContribution ? `<span class="quantity-group"><span class="quantity-label">My quantity</span><span class="quantity-control"><button data-quantity="${row.itemId}" data-delta="-1" aria-label="Reduce my quantity of ${escapeHTML(row.item.name)}">−</button><output aria-label="My quantity of ${escapeHTML(row.item.name)}">${localQuantity}</output><button data-quantity="${row.itemId}" data-delta="1" aria-label="Increase my quantity of ${escapeHTML(row.item.name)}">+</button></span>${row.contributions.length > 1 ? `<span class="quantity-total">Total requested: ${row.quantity}</span>` : ""}</span>` : (row.quantity > 1 ? `<span class="quantity-readout">Quantity ${row.quantity}</span>` : "")}
-        ${localStoreControl}${importedStoreDetails}${readOnlyStore}
-        <button class="couldnt-button" data-status-item="${row.itemId}" data-status="unavailable" aria-label="Mark ${escapeHTML(row.item.name)} Couldn’t Get">Couldn’t Get</button>
-        ${localContribution ? `<button class="remove-request-button" data-remove-local="${row.itemId}">${removeLabel}</button>` : ""}
-      </div>
+      <div class="requesters">${escapeHTML(requesters)}</div>
+      <div class="shopping-readonly-meta">${row.quantity > 1 ? `<span class="quantity-badge">×${row.quantity}</span>` : ""}${shoppingStoreMarkup(row)}</div>
+      ${differentStores}
     </div>
+    <button class="shopping-status-button missed-status-button" data-status-item="${row.itemId}" data-status="unavailable" aria-label="Mark ${escapeHTML(row.item.name)} Couldn’t Get"><span aria-hidden="true">×</span><small>Couldn't<br>Get</small></button>
   </div>`;
 }
 
@@ -735,7 +817,7 @@ function openCustomItem(categoryId = "other", item = null) {
   document.querySelector("#custom-item-dialog-help").textContent = item ? "Change this saved item." : "Add something not already in the list.";
   document.querySelector("#custom-item-name").value = item?.name || "";
   document.querySelector("#custom-item-category").value = item?.categoryId || categoryId;
-  customItemForm.querySelectorAll('input[name="store"]').forEach(input => { input.checked = input.value === (item?.defaultStore || "Either"); });
+  customItemForm.querySelectorAll('input[name="store"]').forEach(input => { input.checked = input.value === (item?.defaultStore || "Coles"); });
   document.querySelector("#custom-item-add-now-row").classList.toggle("is-hidden-row", Boolean(item));
   document.querySelector("#custom-item-add-now").checked = true;
   customItemDialog.showModal();
@@ -1014,6 +1096,7 @@ main.addEventListener("click", async event => {
   button.disabled = true;
   button.setAttribute("aria-busy", "true");
   try {
+    if (button.dataset.summaryStatus) { state.statusFilter = button.dataset.summaryStatus; return routeTo("status"); }
     if (button.dataset.route) return routeTo(button.dataset.route);
     if (button.dataset.category) { state.itemSearch = ""; state.categoryEditMode = false; return routeTo("add", { categoryId: button.dataset.category }); }
     if (button.hasAttribute("data-category-back")) { state.selectedCategoryId = null; state.itemSearch = ""; state.categoryEditMode = false; return renderAddItems(); }
@@ -1032,6 +1115,12 @@ main.addEventListener("click", async event => {
       const item = await restorePresetItem(button.dataset.restorePreset);
       await renderAddItems();
       showToast(`${item?.name || "Item"} restored.`);
+      return;
+    }
+    if (button.dataset.storeChoiceItem) {
+      await changeLocalStore(button.dataset.storeChoiceItem, button.dataset.storeValue);
+      await renderAddItems();
+      showToast(`Store set to ${storeDisplayName(button.dataset.storeValue)}.`);
       return;
     }
     if (button.dataset.toggleItem) {
@@ -1059,7 +1148,12 @@ main.addEventListener("click", async event => {
       showToast(button.dataset.status === "got" ? "Moved to Got It. Tap Undo to change it." : button.dataset.status === "unavailable" ? "Moved to Couldn’t Get. Tap Undo to change it." : "Item returned to your active list.");
       return;
     }
-    if (button.dataset.quantity) { await changeLocalQuantity(button.dataset.quantity, Number(button.dataset.delta)); await renderShopping(); return; }
+    if (button.dataset.quantity) {
+      await changeLocalQuantity(button.dataset.quantity, Number(button.dataset.delta));
+      if (state.route === "add") await renderAddItems();
+      else await renderShopping();
+      return;
+    }
     if (button.dataset.removeLocal) {
       const item = await getRecord("items", button.dataset.removeLocal);
       const confirmed = await confirmAction({ title: "Remove Your Request?", message: `${item?.name || "This item"} will be removed from your part of the shopping list. Other people’s requests will stay.`, confirmText: "Remove My Request" });
@@ -1149,7 +1243,8 @@ main.addEventListener("change", async event => {
   select.setAttribute("aria-busy", "true");
   try {
     await changeLocalStore(select.dataset.storeItem, select.value);
-    await renderShopping();
+    if (state.route === "add") await renderAddItems();
+    else await renderShopping();
     showToast("Store choice updated.");
   } catch (error) {
     console.warn("Store choice could not be changed", error);
@@ -1166,6 +1261,7 @@ main.addEventListener("change", async event => {
 const ROUTE_PARENTS = {
   add: "home",
   shopping: "home",
+  status: "home",
   meals: "home",
   transfer: "home",
   send: "transfer",

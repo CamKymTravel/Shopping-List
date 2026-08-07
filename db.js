@@ -1,13 +1,13 @@
 import { CATEGORIES, PRESET_ITEMS } from "./data.js";
 
 const DB_NAME = "our-shopping-list";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const LOCAL_REQUESTER_ID = "local-device";
 const BACKUP_STORES = [
   "meta", "settings", "people", "categories", "items",
   "contributions", "mealSuggestions", "imports"
 ];
-const ALLOWED_STORES = new Set(["Either", "Coles", "Woolworths"]);
+const ALLOWED_STORES = new Set(["Either", "Coles", "Woolworths", "Aldi"]);
 const ALLOWED_STATUSES = new Set(["active", "got", "unavailable"]);
 const STORED_STATUSES = new Set([...ALLOWED_STATUSES, "cleared"]);
 
@@ -160,6 +160,18 @@ export function openDatabase() {
               receivedFromList: true,
               updatedAt: isoNow()
             }));
+        };
+      }
+
+      if (event.oldVersion < 6) {
+        // Build 0.6.7 makes Coles the normal default for built-in products.
+        // Existing deliberate store choices live on contributions, so this only
+        // updates the library default used the next time a preset item is added.
+        const presetDefaultsRequest = items.getAll();
+        presetDefaultsRequest.onsuccess = () => {
+          presetDefaultsRequest.result
+            .filter(item => item && !item.isCustom && (!item.defaultStore || item.defaultStore === "Either"))
+            .forEach(item => items.put({ ...item, defaultStore: "Coles", updatedAt: isoNow() }));
         };
       }
     };
@@ -407,8 +419,61 @@ export async function getItemLibrary() {
     items: localLibraryItems.filter(item => item.isCustom || !hiddenPresetIds.has(item.id)),
     hiddenItems: localLibraryItems.filter(item => !item.isCustom && hiddenPresetIds.has(item.id)),
     hiddenPresetIds,
-    selectedIds
+    selectedIds,
+    localContributions: contributions.filter(row => row.sourceType === "local" && row.status !== "cleared")
   };
+}
+
+export async function moveCategoryItem(itemId, direction) {
+  const [item, allItems, hiddenPresetIds] = await Promise.all([
+    getRecord("items", itemId),
+    getAll("items"),
+    getHiddenPresetItemIds()
+  ]);
+  if (!item || item.imported) throw new Error("That item cannot be reordered.");
+  const visible = allItems
+    .filter(candidate => candidate.categoryId === item.categoryId && !candidate.imported && (candidate.isCustom || !hiddenPresetIds.has(candidate.id)))
+    .sort((a, b) => {
+      const aSort = Number.isFinite(Number(a.sortOrder)) ? Number(a.sortOrder) : Number.MAX_SAFE_INTEGER;
+      const bSort = Number.isFinite(Number(b.sortOrder)) ? Number(b.sortOrder) : Number.MAX_SAFE_INTEGER;
+      return aSort - bSort || a.name.localeCompare(b.name);
+    });
+  const index = visible.findIndex(candidate => candidate.id === itemId);
+  if (index < 0) throw new Error("That item is not currently visible in this category.");
+
+  let targetIndex = index;
+  if (direction === "top") targetIndex = 0;
+  else if (direction === "up") targetIndex = Math.max(0, index - 1);
+  else if (direction === "down") targetIndex = Math.min(visible.length - 1, index + 1);
+  else throw new Error("Choose Up, Down, or Top.");
+  if (targetIndex === index) return false;
+
+  const reordered = [...visible];
+  const [moved] = reordered.splice(index, 1);
+  reordered.splice(targetIndex, 0, moved);
+
+  // Reuse the category's existing visible sort slots. This moves the chosen
+  // item without disturbing the positions of any items the user has hidden.
+  let slots = visible.map(candidate => Number(candidate.sortOrder));
+  const invalidSlots = slots.some(value => !Number.isFinite(value)) || new Set(slots).size !== slots.length;
+  if (invalidSlots) {
+    const categoryIndex = Math.max(0, CATEGORIES.findIndex(category => category.id === item.categoryId));
+    const base = categoryIndex * 1000;
+    slots = visible.map((_, position) => base + position);
+  } else {
+    slots.sort((a, b) => a - b);
+  }
+
+  const now = isoNow();
+  const db = await openDatabase();
+  const tx = db.transaction("items", "readwrite");
+  const store = tx.objectStore("items");
+  reordered.forEach((candidate, position) => {
+    store.put({ ...candidate, sortOrder: slots[position], updatedAt: now });
+  });
+  await transactionDone(tx);
+  await bumpListRevision();
+  return true;
 }
 
 export async function toggleLocalItem(itemId) {
@@ -435,7 +500,7 @@ export async function toggleLocalItem(itemId) {
       requesterId: identity.id,
       requesterName: identity.name,
       explicitQuantity: null,
-      store: item.defaultStore || "Either",
+      store: item.defaultStore || "Coles",
       status: "active",
       sourceType: "local",
       sourceSenderId: null,
@@ -449,7 +514,7 @@ export async function toggleLocalItem(itemId) {
   return !match;
 }
 
-export async function createCustomItem({ name, categoryId, store = "Either", addNow = true }) {
+export async function createCustomItem({ name, categoryId, store = "Coles", addNow = true }) {
   const cleanedName = cleanText(name, 80);
   if (!cleanedName) throw new Error("Please enter an item name.");
   if (!CATEGORIES.some(category => category.id === categoryId)) throw new Error("Please choose a valid category.");

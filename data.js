@@ -1,4 +1,4 @@
-export const STORE_OPTIONS = ["Either", "Coles", "Woolworths"];
+export const STORE_OPTIONS = ["Coles", "Woolworths", "Aldi", "Either"];
 
 export const CATEGORIES = [
   { id: "fruit-veg", name: "Fruit & Vegetables", shortName: "Fruit & Veg", emoji: "🍎🥕", accent: "#24943b", tint: "#eff9eb" },
@@ -39,7 +39,7 @@ export const PRESET_ITEMS = Object.entries(ITEMS).flatMap(([categoryId, names], 
     id: stableItemId(categoryId, name),
     categoryId,
     name,
-    defaultStore: "Either",
+    defaultStore: "Coles",
     isCustom: false,
     sortOrder: categoryIndex * 1000 + itemIndex
   }))
