@@ -8,7 +8,8 @@ import {
   previewTransfer, acceptTransfer, exportFullBackup, validateBackup, restoreFullBackup,
   getPinState, setSettingsPin, clearSettingsPin, verifySettingsPin,
   getAccessibilitySettings, setAccessibilitySettings, consumeRestoreNotice,
-  hidePresetItem, restorePresetItem
+  hidePresetItem, restorePresetItem, getFavouriteItemIds, toggleFavouriteItem, getFavouriteItems,
+  getRecentlyBought, addItemAgain
 } from "./db.js";
 
 const main = document.querySelector("#main-content");
@@ -27,7 +28,7 @@ const personPhotoInput = document.querySelector("#person-photo-input");
 const receiveFileInput = document.querySelector("#receive-file-input");
 const restoreFileInput = document.querySelector("#restore-file-input");
 const updateRegion = document.querySelector("#update-region");
-const APP_BUILD = "0.6.8";
+const APP_BUILD = "0.8.0";
 
 const state = {
   route: "home",
@@ -35,6 +36,7 @@ const state = {
   selectedCategoryId: null,
   itemSearch: "",
   categoryEditMode: false,
+  shoppingMode: false,
   statusFilter: "active",
   settingsUnlocked: false,
   pendingTransfer: null,
@@ -44,16 +46,18 @@ const state = {
   refreshingForUpdate: false
 };
 
-const SETTINGS_ROUTES = new Set(["settings", "people", "custom-items", "data-tools", "accessibility"]);
+const SETTINGS_ROUTES = new Set(["settings", "people", "custom-items", "data-tools", "accessibility", "help"]);
 const ROUTES = {
   home: { title: "Our Shopping List", subtitle: "Easy to read. Easy to use.", render: renderHome },
   add: { title: "My Weekly List", subtitle: "Tap items we need", render: renderAddItems },
   shopping: { title: "Shopping List", subtitle: "Everything still needed", render: renderShopping },
   status: { title: "This Week’s Shop", subtitle: "See items by shopping status", render: renderStatusBreakdown },
   meals: { title: "Meal Ideas", subtitle: "Shared by everyone", render: renderMeals },
-  transfer: { title: "Send or Receive", subtitle: "Simple list transfer", render: renderTransfer },
-  send: { title: "Send My List", subtitle: "Text message or copy", render: renderSend },
-  receive: { title: "Receive a List", subtitle: "Paste and check the list", render: renderReceive },
+  regular: { title: "Regular Items", subtitle: "Things you buy often", render: renderRegularItems },
+  recent: { title: "Recently Bought", subtitle: "Quickly add familiar items again", render: renderRecentlyBought },
+  transfer: { title: "Send or Receive", subtitle: "Easy transfer between people and devices", render: renderTransfer },
+  send: { title: "Send My List", subtitle: "Small file, text message or copy", render: renderSend },
+  receive: { title: "Receive a List", subtitle: "Open a small file or receive from your other device", render: renderReceive },
   "receive-preview": { title: "Check This List", subtitle: "Review before updating", render: renderReceivePreview },
   "receive-success": { title: "List Updated", subtitle: "The transfer is complete", render: renderReceiveSuccess },
   "copy-success": { title: "List Copied", subtitle: "Open the app on your other device", render: renderCopySuccess },
@@ -61,7 +65,8 @@ const ROUTES = {
   people: { title: "People", subtitle: "Everyone you can send to", render: renderPeople },
   "custom-items": { title: "Custom Items", subtitle: "Change your saved items", render: renderCustomItems },
   "data-tools": { title: "Backup and Restore", subtitle: "Protect your local data", render: renderDataTools },
-  accessibility: { title: "Accessibility", subtitle: "Keep the app easy to read", render: renderAccessibility }
+  accessibility: { title: "Accessibility", subtitle: "Keep the app easy to read", render: renderAccessibility },
+  help: { title: "Help", subtitle: "Simple step-by-step instructions", render: renderHelp }
 };
 
 function escapeHTML(value) {
@@ -123,6 +128,7 @@ function routeTo(route, options = {}) {
     state.selectedCategoryId = options.categoryId;
   }
   if (route !== "add") state.categoryEditMode = false;
+  if (route !== "shopping") state.shoppingMode = false;
   if (route === "home") {
     state.selectedCategoryId = null;
     state.itemSearch = "";
@@ -338,9 +344,9 @@ async function renderHome() {
       <div class="summary-card">
         <h1 id="home-summary-title">This Week’s Shop</h1>
         <div class="summary-grid">
-          <button class="summary-stat need" data-summary-status="active" aria-label="View ${summary.need} items still needed"><span>Still Need</span><strong>${summary.need}</strong></button>
-          <button class="summary-stat got" data-summary-status="got" aria-label="View ${summary.got} items marked Got It"><span>Got It</span><strong>${summary.got}</strong></button>
-          <button class="summary-stat missed" data-summary-status="unavailable" aria-label="View ${summary.unavailable} items marked Couldn’t Get"><span>Couldn’t Get</span><strong>${summary.unavailable}</strong></button>
+          <button class="summary-stat need" data-summary-status="active" aria-label="View ${summary.need} items still needed"><span class="summary-label">Still Need</span><strong>${summary.need}</strong><small>Tap to view</small></button>
+          <button class="summary-stat got" data-summary-status="got" aria-label="View ${summary.got} items marked Got It"><span class="summary-label">Got It</span><strong>${summary.got}</strong><small>Tap to view</small></button>
+          <button class="summary-stat missed" data-summary-status="unavailable" aria-label="View ${summary.unavailable} items marked Couldn’t Get"><span class="summary-label">Couldn’t Get</span><strong>${summary.unavailable}</strong><small>Tap to view</small></button>
         </div>
       </div>
       ${owner ? "" : `<div class="setup-card"><strong>First time here?</strong><span>Add your name once so you can send lists between people and devices.</span><button class="button button-primary button-wide" data-route="people">Set Up My Profile</button></div>`}
@@ -350,11 +356,15 @@ async function renderHome() {
         <button class="home-action action-green" data-route="transfer"><span class="action-icon">👥</span><span>Send or Receive a List</span><span class="action-arrow">›</span></button>
         <button class="home-action action-orange" data-route="meals"><span class="action-icon">🍽️</span><span>Meal Ideas</span><span class="action-arrow">›</span></button>
       </nav>
+      <div class="quick-pick-grid" aria-label="Quick choices">
+        <button class="quick-pick-card regular-card" data-route="regular"><span aria-hidden="true">★</span><strong>Regular Items</strong><small>Things we buy often</small></button>
+        <button class="quick-pick-card recent-card" data-route="recent"><span aria-hidden="true">↻</span><strong>Recently Bought</strong><small>Add something again</small></button>
+      </div>
     </section>`;
 }
 
 async function renderAddItems() {
-  const { categories, items, hiddenItems, selectedIds, localContributions } = await getItemLibrary();
+  const [{ categories, items, hiddenItems, selectedIds, localContributions }, favouriteIds] = await Promise.all([getItemLibrary(), getFavouriteItemIds()]);
   const selectedCategory = categories.find(category => category.id === state.selectedCategoryId);
   const localByItem = new Map((localContributions || []).map(row => [row.itemId, row]));
   if (!selectedCategory) {
@@ -362,7 +372,8 @@ async function renderAddItems() {
     main.innerHTML = `
       <section class="screen">
         <h1 class="section-heading">Add What We Need</h1>
-        <p class="section-subtitle">Choose a shopping category.</p>
+        <p class="section-subtitle">Choose a shopping category, or use your regular items.</p>
+        <button class="regular-items-banner" data-route="regular"><span aria-hidden="true">★</span><span><strong>Regular Items</strong><small>${favouriteIds.size} saved ${favouriteIds.size === 1 ? "item" : "items"}</small></span><span aria-hidden="true">›</span></button>
         <div class="category-grid">
           ${categories.map(category => {
             const count = [...items, ...hiddenItems].filter(item => item.categoryId === category.id && selectedIds.has(item.id)).length;
@@ -389,11 +400,11 @@ async function renderAddItems() {
       <div class="category-edit-heading">
         <div>
           <h1 class="section-heading">${escapeHTML(selectedCategory.name)}</h1>
-          <p class="section-subtitle">${editMode ? "Remove items you never buy. Items always stay in alphabetical order." : "Tap an item, then set its quantity and store here."}</p>
+          <p class="section-subtitle">${editMode ? "Remove items you never buy, or mark regular items with a star. Items stay alphabetical." : "Tap an item, then set its quantity and store here."}</p>
         </div>
         <button class="button ${editMode ? "button-success" : "button-secondary"} category-edit-button" data-toggle-category-edit>${editMode ? "✓ Done" : "✏️ Edit List"}</button>
       </div>
-      ${editMode ? `<div class="notice-card compact-notice"><strong>Editing this category</strong><span>Items are automatically alphabetical. Removing an item only hides it from this category.</span></div>` : ""}
+      ${editMode ? `<div class="notice-card compact-notice"><strong>Editing this category</strong><span>Items are automatically alphabetical. Use the star for things you buy often. Removing an item only hides it from this category.</span></div>` : ""}
       <div class="panel" style="${categoryStyle(selectedCategory)}" aria-labelledby="selected-category-heading">
         <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${selectedCategory.emoji}</span><strong id="selected-category-heading">${escapeHTML(selectedCategory.name)}</strong><span class="panel-count">${categoryItems.length} items</span></div>
         <div class="panel-body">
@@ -406,6 +417,7 @@ async function renderAddItems() {
             if (editMode) return `
             <div class="item-row category-management-row">
               <div class="item-copy"><div class="item-name">${escapeHTML(item.name)}</div><div class="item-meta">${item.isCustom ? "Custom item" : "Built-in item"} • ${escapeHTML(storeDisplayName(item.defaultStore || "Coles"))}</div></div>
+              <button class="favourite-button ${favouriteIds.has(item.id) ? "is-favourite" : ""}" data-toggle-favourite="${item.id}" aria-pressed="${favouriteIds.has(item.id)}" aria-label="${favouriteIds.has(item.id) ? "Remove" : "Add"} ${escapeHTML(item.name)} ${favouriteIds.has(item.id) ? "from" : "to"} Regular Items">★</button>
               <div class="category-item-actions">
                 ${item.isCustom
                   ? `<button class="button button-secondary" data-edit-custom="${item.id}">Edit</button><button class="button button-danger" data-delete-custom="${item.id}">Delete</button>`
@@ -416,6 +428,7 @@ async function renderAddItems() {
             <div class="item-row selectable-item-row ${selected ? "is-selected" : ""}">
               <button class="item-select" style="--accent:${selectedCategory.accent}" data-toggle-item="${item.id}" aria-pressed="${selected}" aria-label="${selected ? "Remove" : "Add"} ${escapeHTML(item.name)}">${selected ? "✓" : ""}</button>
               <div class="item-copy"><div class="item-name">${escapeHTML(item.name)}</div>${item.isCustom ? '<div class="item-meta">Custom item</div>' : ""}</div>
+              <button class="favourite-button compact-favourite ${favouriteIds.has(item.id) ? "is-favourite" : ""}" data-toggle-favourite="${item.id}" aria-pressed="${favouriteIds.has(item.id)}" aria-label="${favouriteIds.has(item.id) ? "Remove" : "Add"} ${escapeHTML(item.name)} ${favouriteIds.has(item.id) ? "from" : "to"} Regular Items">★</button>
               ${selected ? storeBrandMarkup(store, true) : ""}
               ${selected ? `<div class="item-entry-controls">
                 <div class="entry-control-section">
@@ -451,6 +464,43 @@ async function renderAddItems() {
   });
 }
 
+async function renderRegularItems() {
+  const [items, library] = await Promise.all([getFavouriteItems(), getItemLibrary()]);
+  const selectedIds = library.selectedIds;
+  main.innerHTML = `
+    <section class="screen quick-list-screen">
+      <div class="quick-list-hero regular-hero"><span aria-hidden="true">★</span><div><h1>Regular Items</h1><p>Things you buy often. Tap Add to put one on this week’s list.</p></div></div>
+      ${items.length ? `<div class="quick-item-list">${items.map(item => {
+        const selected = selectedIds.has(item.id);
+        const category = CATEGORIES.find(row => row.id === item.categoryId);
+        return `<article class="quick-item-row" style="${categoryStyle(category)}">
+          <span class="quick-item-icon" aria-hidden="true">${category?.emoji || "🛒"}</span>
+          <span class="quick-item-copy"><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(category?.name || "Other")}</small></span>
+          <button class="button ${selected ? "button-secondary" : "button-success"}" data-toggle-item="${item.id}">${selected ? "On List ✓" : "＋ Add"}</button>
+        </article>`;
+      }).join("")}</div>` : `<div class="empty-card"><div class="empty-icon">★</div><h2>No Regular Items yet</h2><p>Open a category and tap the star beside anything you buy often.</p><button class="button button-primary" data-route="add">Choose Regular Items</button></div>`}
+      <div class="sticky-actions"><button class="button button-success button-wide" data-route="shopping">🛒 Open Shopping List</button></div>
+    </section>`;
+}
+
+async function renderRecentlyBought() {
+  const [recent, library] = await Promise.all([getRecentlyBought(30), getItemLibrary()]);
+  const selectedIds = library.selectedIds;
+  main.innerHTML = `
+    <section class="screen quick-list-screen">
+      <div class="quick-list-hero recent-hero"><span aria-hidden="true">↻</span><div><h1>Recently Bought</h1><p>Quickly add something you bought in an earlier shop.</p></div></div>
+      ${recent.length ? `<div class="quick-item-list">${recent.map(row => {
+        const selected = selectedIds.has(row.item.id);
+        return `<article class="quick-item-row" style="${categoryStyle(row.category)}">
+          <span class="quick-item-icon" aria-hidden="true">${row.category?.emoji || "🛒"}</span>
+          <span class="quick-item-copy"><strong>${escapeHTML(row.item.name)}</strong><small>${escapeHTML(row.category?.name || "Other")}</small></span>
+          <button class="button ${selected ? "button-secondary" : "button-success"}" ${selected ? "disabled" : `data-add-again="${row.item.id}"`}>${selected ? "On List ✓" : "＋ Add Again"}</button>
+        </article>`;
+      }).join("")}</div>` : `<div class="empty-card"><div class="empty-icon">↻</div><h2>No recent items yet</h2><p>Items will appear here after you finish your first shopping trip.</p><button class="button button-primary" data-route="add">Add What We Need</button></div>`}
+      <div class="sticky-actions"><button class="button button-success button-wide" data-route="shopping">🛒 Open Shopping List</button></div>
+    </section>`;
+}
+
 async function renderShopping() {
   const [combined, meals] = await Promise.all([getCombinedShoppingList(), getMealSuggestions()]);
   const active = combined.filter(row => row.status === "active");
@@ -463,9 +513,12 @@ async function renderShopping() {
   }
 
   main.innerHTML = `
-    <section class="screen">
-      <div class="summary-card compact-summary"><h1>${active.length} ${active.length === 1 ? "item" : "items"} to buy</h1></div>
-      <button class="meal-shortcut-button" data-route="meals"><span aria-hidden="true">🍽️</span><span><strong>View Meal Ideas</strong><small>${meals.length} shared ${meals.length === 1 ? "idea" : "ideas"}</small></span><span aria-hidden="true">›</span></button>
+    <section class="screen ${state.shoppingMode ? "shopping-mode-screen" : ""}">
+      <div class="shopping-mode-heading">
+        <div class="summary-card compact-summary shopping-count-card"><h1>${active.length} ${active.length === 1 ? "item" : "items"} to buy</h1>${state.shoppingMode ? "<p>Shopping Mode is on</p>" : ""}</div>
+        ${active.length ? `<button class="button ${state.shoppingMode ? "button-secondary" : "button-primary"} shopping-mode-toggle" data-toggle-shopping-mode>${state.shoppingMode ? "← Exit Shopping Mode" : "🛒 Start Shopping Mode"}</button>` : ""}
+      </div>
+      ${state.shoppingMode ? "" : `<button class="meal-shortcut-button" data-route="meals"><span aria-hidden="true">🍽️</span><span><strong>View Meal Ideas</strong><small>${meals.length} shared ${meals.length === 1 ? "idea" : "ideas"}</small></span><span aria-hidden="true">›</span></button>`}
       ${active.length ? [...grouped.entries()].map(([categoryId, rows]) => {
         const category = rows[0].category || CATEGORIES.find(row => row.id === categoryId);
         const sortedRows = [...rows].sort((a, b) => a.item.name.localeCompare(b.item.name, undefined, { sensitivity: "base" }));
@@ -474,15 +527,17 @@ async function renderShopping() {
           ${sortedRows.map(row => renderShoppingRow(row, category)).join("")}
         </section>`;
       }).join("") : `<div class="empty-card"><div class="empty-icon">🛒</div><h2>Your shopping list is empty</h2><p>Tap Add What We Need to choose some items.</p><button class="button button-primary" data-route="add">Add What We Need</button></div>`}
-      <details class="collapsible-summary got">
-        <summary><span>✓</span><span>Got It</span><span class="status-count">${got.length}</span></summary>
-        <div class="status-list">${got.length ? got.map(row => renderStatusRow(row, "got")).join("") : "<p>No items marked Got It yet.</p>"}</div>
-      </details>
-      <details class="collapsible-summary missed">
-        <summary><span>✕</span><span>Couldn’t Get</span><span class="status-count">${unavailable.length}</span></summary>
-        <div class="status-list">${unavailable.length ? unavailable.map(row => renderStatusRow(row, "unavailable")).join("") : "<p>No unavailable items.</p>"}</div>
-      </details>
-      ${(got.length || unavailable.length) ? `<div class="result-reminder"><strong>Shopping for somebody else?</strong><span>Send the list now if they need to see what you got or couldn’t get. Finish Shopping clears the Got It results from this device.</span><button class="button button-secondary button-wide" data-route="send">📤 Send List or Results</button></div><div class="sticky-actions"><button class="button button-success button-wide" data-finish-shopping>✓ Finish Shopping</button></div>` : ""}
+      ${state.shoppingMode ? `<div class="shopping-mode-footer"><button class="button button-secondary button-wide button-very-large" data-toggle-shopping-mode>← Exit Shopping Mode</button></div>` : `
+        <details class="collapsible-summary got">
+          <summary><span>✓</span><span>Got It</span><span class="status-count">${got.length}</span></summary>
+          <div class="status-list">${got.length ? got.map(row => renderStatusRow(row, "got")).join("") : "<p>No items marked Got It yet.</p>"}</div>
+        </details>
+        <details class="collapsible-summary missed">
+          <summary><span>✕</span><span>Couldn’t Get</span><span class="status-count">${unavailable.length}</span></summary>
+          <div class="status-list">${unavailable.length ? unavailable.map(row => renderStatusRow(row, "unavailable")).join("") : "<p>No unavailable items.</p>"}</div>
+        </details>
+        ${(got.length || unavailable.length) ? `<div class="result-reminder"><strong>Shopping for somebody else?</strong><span>Send the list now if they need to see what you got or couldn’t get. Finish Shopping clears the Got It results from this device.</span><button class="button button-secondary button-wide" data-route="send">📤 Send List or Results</button></div><div class="sticky-actions"><button class="button button-success button-wide" data-finish-shopping>✓ Finish Shopping</button></div>` : ""}
+      `}
     </section>`;
 }
 
@@ -527,8 +582,22 @@ async function renderStatusBreakdown() {
     </section>`;
 }
 
+function requesterProfilesMarkup(row) {
+  const profiles = Array.isArray(row.requesterProfiles) && row.requesterProfiles.length
+    ? row.requesterProfiles
+    : (row.requesters || []).map(name => ({ name, photo: "" }));
+  return `<div class="requester-strip" aria-label="Requested by ${escapeHTML(profiles.map(profile => profile.name).join(", "))}">
+    <span class="requester-avatar-group">${profiles.slice(0, 4).map(profile => {
+      const photo = safePhoto(profile.photo);
+      return photo
+        ? `<span class="requester-mini-avatar"><img src="${photo}" alt=""></span>`
+        : `<span class="requester-mini-avatar" aria-hidden="true">${escapeHTML(initials(profile.name))}</span>`;
+    }).join("")}</span>
+    <span class="requester-names">${escapeHTML(profiles.map(profile => profile.name).join(" • ") || "Me")}</span>
+  </div>`;
+}
+
 function renderShoppingRow(row, category) {
-  const requesters = row.requesters.length ? row.requesters.join(" • ") : "Me";
   const differentStores = row.store === "Different"
     ? `<div class="shopping-store-detail">${row.requesterStores.map(entry => `${escapeHTML(entry.name)}: ${escapeHTML(storeDisplayName(entry.store))}`).join(" • ")}</div>`
     : "";
@@ -536,7 +605,7 @@ function renderShoppingRow(row, category) {
     <button class="shopping-status-button got-status-button" style="--accent:${category.accent}" data-status-item="${row.itemId}" data-status="got" aria-label="Mark ${escapeHTML(row.item.name)} Got It"><span aria-hidden="true">✓</span><small>Got</small></button>
     <div class="item-copy shopping-item-copy">
       <div class="item-name">${escapeHTML(row.item.name)}</div>
-      <div class="requesters">${escapeHTML(requesters)}</div>
+      ${requesterProfilesMarkup(row)}
       <div class="shopping-readonly-meta">${row.quantity > 1 ? `<span class="quantity-badge">×${row.quantity}</span>` : ""}${shoppingStoreMarkup(row)}</div>
       ${differentStores}
     </div>
@@ -580,16 +649,15 @@ async function renderMeals() {
 
 async function renderTransfer() {
   const owner = await getOwner();
-  main.innerHTML = `
-    <section class="screen">
+  main.innerHTML =     `<section class="screen transfer-screen">
       <h1 class="section-heading">Send or Receive a List</h1>
-      <p class="section-subtitle">Choose one large button. The easiest iPad-to-iPhone method is first.</p>
+      <p class="section-subtitle">Choose one large button. The easiest iPad-to-iPhone method for Mum is first.</p>
       <div class="transfer-choice-grid transfer-simple-grid">
-        <button class="transfer-choice self-copy-choice" data-copy-self ${owner ? "" : "disabled"}><span aria-hidden="true">📱</span><strong>Copy List to My Phone</strong><small>On your iPad, copy the list. Then open this app on your iPhone and tap Receive a List.</small></button>
-        <button class="transfer-choice send-choice" data-route="send"><span aria-hidden="true">💬</span><strong>Send List to Someone</strong><small>Choose a saved person, then send the prepared list by text message.</small></button>
-        <button class="transfer-choice receive-choice" data-route="receive"><span aria-hidden="true">📥</span><strong>Receive a List</strong><small>Paste a copied list from Messages or from your other Apple device.</small></button>
+        <button class="transfer-choice self-copy-choice" data-copy-self ${owner ? "" : "disabled"}><span aria-hidden="true">📱</span><strong>Send to My Phone</strong><small>On your iPad, send your list. Then open this app on your iPhone and tap Receive My List.</small></button>
+        <button class="transfer-choice send-choice" data-route="send"><span aria-hidden="true">💬</span><strong>Send to Someone</strong><small>Prepare a small Shopping List file or message to send to Cameron, Kim or Leslie.</small></button>
+        <button class="transfer-choice receive-choice" data-route="receive"><span aria-hidden="true">📥</span><strong>Receive My List</strong><small>Use this after Send to My Phone, or after someone sends you a small Shopping List file.</small></button>
       </div>
-      ${owner ? "" : `<div class="notice-card"><strong>Set up My Profile first</strong><span>Your name is needed before this device can copy or send a list.</span><button class="button button-primary button-wide" data-route="people">Set Up My Profile</button></div>`}
+      ${owner ? "" : `<div class="notice-card"><strong>Set up My Profile first</strong><span>Your name is needed before this device can send or copy a list.</span><button class="button button-primary button-wide" data-route="people">Set Up My Profile</button></div>`}
     </section>`;
 }
 
@@ -599,73 +667,72 @@ async function renderSend() {
     main.innerHTML = `<section class="screen"><div class="empty-card"><div class="empty-icon">👤</div><h2>Set up your profile first</h2><p>Your name identifies who sent the list.</p><button class="button button-primary" data-route="people">Set Up My Profile</button></div></section>`;
     return;
   }
-  main.innerHTML = `
-    <section class="screen">
-      <div class="summary-card compact-summary"><h1>${combined.length} ${combined.length === 1 ? "item" : "items"} and ${meals.length} meal ${meals.length === 1 ? "idea" : "ideas"} ready to send</h1></div>
+  main.innerHTML =     `<section class="screen send-screen">
+      <div class="summary-card compact-summary send-summary-card"><h1>${combined.length} ${combined.length === 1 ? "item" : "items"} and ${meals.length} meal ${meals.length === 1 ? "idea" : "ideas"} ready to send</h1><p>Small list files are easiest for people-to-people sharing. Copy is easiest for your own iPad and iPhone.</p></div>
       <h2 class="section-heading smaller-heading">Who are you sending to?</h2>
-      <p class="section-subtitle">Tap one large green button. Shopping items and meal ideas travel together.</p>
+      <p class="section-subtitle">Tap the big main button. Shopping items and meal ideas travel together.</p>
       <div class="people-list send-people-list">
-        ${people.length ? people.map(person => `<article class="person-card send-person-card">
+        ${people.length ? people.map(person => `<article class="person-card send-person-card polished-person-card">
           ${avatarMarkup(person)}
           <div class="person-card-copy"><strong>${escapeHTML(person.name)}</strong>${person.isOwner ? '<span class="owner-badge">My Profile</span>' : ""}<small>${escapeHTML(person.phone || "No mobile number saved")}</small></div>
           <div class="person-send-actions simple-send-actions">
             ${person.isOwner
-              ? `<button class="button button-success button-very-large" data-copy-person="${person.id}">Copy List to My Phone</button>`
-              : person.phone
-                ? `<button class="button button-success button-very-large" data-message-person="${person.id}">Send by Text Message</button>`
-                : `<button class="button button-success button-very-large" data-share-text-person="${person.id}">Share This List</button>`}
+              ? `<button class="button button-success button-very-large" data-copy-person="${person.id}">Send to My Phone</button>`
+              : `<button class="button button-success button-very-large" data-share-person="${person.id}">Send Small List File</button>`}
             <details class="transfer-more-options">
               <summary>Other Ways to Send</summary>
               <div class="transfer-more-actions">
-                <button class="button button-secondary" data-share-person="${person.id}">AirDrop or Share File</button>
-                ${person.phone ? `<button class="button button-secondary" data-sms-person="${person.id}">Send Readable List Only</button>` : ""}
-                <button class="text-button" data-export-person="${person.id}">Save List File</button>
+                ${!person.isOwner && person.phone ? `<button class="button button-secondary" data-message-person="${person.id}">Send by Text Message</button>` : ""}
+                ${!person.isOwner ? `<button class="button button-secondary" data-share-text-person="${person.id}">Copy Long Message Instead</button>` : ""}
+                <button class="button button-secondary" data-export-person="${person.id}">Save Shopping List File</button>
+                ${!person.isOwner && person.phone ? `<button class="text-button" data-sms-person="${person.id}">Send Readable List Only</button>` : ""}
               </div>
             </details>
           </div>
         </article>`).join("") : `<div class="empty-card"><h2>No people added yet</h2><p>Add yourself and anyone you share lists with.</p><button class="button button-primary" data-route="people">Add People</button></div>`}
       </div>
-      <div class="notice-card"><strong>Simple method for Mum</strong><span>Use Copy List to My Phone between her iPad and iPhone. Use Send by Text Message when somebody else sends her a list.</span></div>
+      <div class="notice-card"><strong>Simplest plan</strong><span>For Mum: use Send to My Phone between her iPad and iPhone. For you and Kim: use Send Small List File first, and use text message only if needed.</span></div>
     </section>`;
 }
 
 async function renderReceive() {
-  main.innerHTML = `
-    <section class="screen">
-      <div class="receive-hero">
+  main.innerHTML =     `<section class="screen receive-screen">
+      <div class="receive-hero polished-receive-hero">
         <span class="receive-icon" aria-hidden="true">📥</span>
         <h1>Receive a List</h1>
-        <p>First copy the whole shopping-list message. Then tap the large button below.</p>
-        <button class="button button-success button-wide button-very-large" data-paste-transfer>Paste and Check List</button>
+        <p>If you sent your list from your own iPad, tap <strong>Receive My List</strong>. If someone sent you a small Shopping List file, tap <strong>Open Shopping List File</strong>.</p>
+        <div class="receive-primary-actions">
+          <button class="button button-success button-wide button-very-large" data-paste-transfer>Receive My List</button>
+          <button class="button button-primary button-wide button-very-large" data-choose-receive-file>Open Shopping List File</button>
+        </div>
       </div>
       <ol class="plain-steps simple-receive-steps">
-        <li><strong>1.</strong> Copy the whole message, or copy the list on your iPad.</li>
-        <li><strong>2.</strong> Open this app and tap <strong>Paste and Check List</strong>.</li>
-        <li><strong>3.</strong> Check the sender, then tap <strong>Accept and Update</strong>.</li>
+        <li><strong>1.</strong> If this is your own list from your other Apple device, tap <strong>Receive My List</strong>.</li>
+        <li><strong>2.</strong> If somebody sent a small file, tap <strong>Open Shopping List File</strong>.</li>
+        <li><strong>3.</strong> Check the sender, then tap <strong>Update My Shopping List</strong>.</li>
       </ol>
       <details class="transfer-other-card">
         <summary>Other Ways to Receive</summary>
         <div class="transfer-other-body">
-          <label for="manual-transfer-text"><strong>Paste the message here manually</strong></label>
+          <label for="manual-transfer-text"><strong>Paste the long message here manually</strong></label>
           <textarea id="manual-transfer-text" rows="5" autocomplete="off" placeholder="Press and hold here, then tap Paste"></textarea>
           <button class="button button-secondary button-wide" data-check-manual-transfer>Check Pasted List</button>
-          <button class="button button-secondary button-wide" data-choose-receive-file>Choose a Shopping List File</button>
+          <p class="receive-small-note">Use this only if the small Shopping List file or Receive My List method is not available.</p>
         </div>
       </details>
     </section>`;
 }
 
 async function renderCopySuccess() {
-  main.innerHTML = `
-    <section class="screen success-screen copy-success-screen">
+  main.innerHTML =     `<section class="screen success-screen copy-success-screen">
       <div class="success-mark" aria-hidden="true">✓</div>
-      <h1>List Copied</h1>
+      <h1>Sent to Your Other Device</h1>
       <p>Now open <strong>Our Shopping List</strong> on your other device.</p>
       <div class="copy-next-steps">
         <strong>On the other device:</strong>
         <span>1. Tap Send or Receive a List.</span>
-        <span>2. Tap Receive a List.</span>
-        <span>3. Tap Paste and Check List.</span>
+        <span>2. Tap Receive My List.</span>
+        <span>3. Tap Update My Shopping List.</span>
       </div>
       <button class="button button-primary button-wide button-very-large" data-route="home">Done</button>
     </section>`;
@@ -693,17 +760,19 @@ async function renderReceivePreview() {
         <div class="preview-stat"><strong>${preview.removed}</strong><span>Removed by sender</span></div>
         <div class="preview-stat"><strong>${preview.totalMeals}</strong><span>Meal ideas</span></div>
       </div>
-      ${noChange ? `<button class="button button-primary button-wide" data-cancel-transfer>Done</button>` : `<div class="sticky-actions"><button class="button button-success button-wide button-very-large" data-accept-transfer>Accept and Update</button><button class="button button-secondary button-wide" data-cancel-transfer>Not Now</button></div>`}
+      ${noChange ? `<button class="button button-primary button-wide" data-cancel-transfer>Done</button>` : `<div class="sticky-actions"><button class="button button-success button-wide button-very-large" data-accept-transfer>Update My Shopping List</button><button class="button button-secondary button-wide" data-cancel-transfer>Not Now</button></div>`}
     </section>`;
 }
 
 async function renderReceiveSuccess() {
   const result = state.lastImportResult;
+  const sender = result?.senderName || "The sender";
   main.innerHTML = `
-    <section class="screen success-screen">
+    <section class="screen success-screen transfer-success-screen">
       <div class="success-mark" aria-hidden="true">✓</div>
-      <h1>List Updated</h1>
-      <p>${result ? `${escapeHTML(result.senderName)}’s latest list is now included.` : "The latest list is now included."}</p>
+      <h1>${escapeHTML(sender)}’s List Has Been Added</h1>
+      <p class="success-big-message">Your shopping list is updated successfully.</p>
+      ${result ? `<div class="success-transfer-stats"><span><strong>${result.totalItems ?? 0}</strong> shopping items</span><span><strong>${result.totalMeals ?? 0}</strong> meal ideas</span></div>` : ""}
       <button class="button button-success button-wide button-very-large" data-route="shopping">Open My Updated List</button>
       <button class="button button-secondary button-wide" data-route="home">Return Home</button>
     </section>`;
@@ -738,6 +807,7 @@ async function renderSettings() {
         <button class="settings-navigation-card" data-route="custom-items"><span class="settings-card-icon">📝</span><span><strong>Custom Items</strong><small>${customItems.length} saved custom ${customItems.length === 1 ? "item" : "items"}</small></span><span>›</span></button>
         <button class="settings-navigation-card" data-route="data-tools"><span class="settings-card-icon">💾</span><span><strong>Backup and Restore</strong><small>Export one complete backup or replace from a saved backup.</small></span><span>›</span></button>
         <button class="settings-navigation-card" data-route="accessibility"><span class="settings-card-icon">👓</span><span><strong>Accessibility and PIN</strong><small>Large text is on • Settings PIN ${pinState.enabled ? "is on" : "is off"}</small></span><span>›</span></button>
+        <button class="settings-navigation-card help-navigation-card" data-route="help"><span class="settings-card-icon">?</span><span><strong>Simple Help</strong><small>How to add items, shop, send and receive a list.</small></span><span>›</span></button>
       </div>
       <div class="sticky-actions"><button class="button button-success button-wide" data-route="home">Return to Shopping List</button></div>
       <p class="build-label">Version 1 • Build ${APP_BUILD}</p>
@@ -807,6 +877,19 @@ async function renderAccessibility() {
           <label for="confirm-pin"><strong>Enter it again</strong></label><input class="pin-input" id="confirm-pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="new-password">
           <button class="button button-success button-wide" data-enable-pin>Turn On Settings PIN</button>`}
       </div>
+    </section>`;
+}
+
+async function renderHelp() {
+  main.innerHTML = `
+    <section class="screen help-screen">
+      <div class="quick-list-hero help-hero"><span aria-hidden="true">?</span><div><h1>Simple Help</h1><p>Tap a question to see the steps.</p></div></div>
+      <details class="help-card" open><summary>How do I add things we need?</summary><div><p><strong>1.</strong> Tap Add What We Need.</p><p><strong>2.</strong> Tap a category.</p><p><strong>3.</strong> Tap the round circle beside each item.</p><p><strong>4.</strong> Open Shopping List when finished.</p></div></details>
+      <details class="help-card"><summary>How do I shop?</summary><div><p><strong>1.</strong> Open Shopping List.</p><p><strong>2.</strong> Tap Start Shopping Mode.</p><p><strong>3.</strong> Tap Got when you put an item in the trolley.</p><p><strong>4.</strong> Tap Couldn’t Get if it is unavailable.</p><p><strong>5.</strong> Exit Shopping Mode and tap Finish Shopping.</p></div></details>
+      <details class="help-card"><summary>How do I send my list to my other device?</summary><div><p><strong>1.</strong> On the first device, tap Send or Receive a List.</p><p><strong>2.</strong> Tap Send to My Phone.</p><p><strong>3.</strong> On the other device, tap Receive My List.</p><p><strong>4.</strong> Tap Update My Shopping List.</p></div></details>
+      <details class="help-card"><summary>How do I receive somebody else’s list?</summary><div><p><strong>1.</strong> Open the Shopping List file they sent you.</p><p><strong>2.</strong> In this app, tap Send or Receive a List.</p><p><strong>3.</strong> Tap Receive My List or Open Shopping List File.</p><p><strong>4.</strong> Check the sender and tap Update My Shopping List.</p></div></details>
+      <details class="help-card"><summary>What are Regular Items?</summary><div><p>Regular Items are things you buy often. Tap the star beside an item in a category to add it to Regular Items. Then you can add it to a new shopping list very quickly.</p></div></details>
+      <button class="button button-success button-wide" data-route="home">Return Home</button>
     </section>`;
 }
 
@@ -1010,7 +1093,7 @@ async function pasteTransferFromClipboard() {
     const details = document.querySelector(".transfer-other-card");
     if (details) details.open = true;
     document.querySelector("#manual-transfer-text")?.focus();
-    throw new Error("Press and hold in the box below, tap Paste, then tap Check Pasted List.");
+    throw new Error("Tap Open Shopping List File if someone sent a small file. Otherwise press and hold in the box below, tap Paste, then tap Check Pasted List.");
   }
   try {
     const text = await navigator.clipboard.readText();
@@ -1020,7 +1103,7 @@ async function pasteTransferFromClipboard() {
     if (details) details.open = true;
     if (error?.name === "NotAllowedError") {
       document.querySelector("#manual-transfer-text")?.focus();
-      throw new Error("Allow Paste when your device asks. If it does not ask, press and hold in the box below and tap Paste.");
+      throw new Error("Allow Paste when your device asks. If that does not work, tap Open Shopping List File or use the manual paste box below.");
     }
     throw error;
   }
@@ -1097,6 +1180,20 @@ main.addEventListener("click", async event => {
   button.setAttribute("aria-busy", "true");
   try {
     if (button.dataset.summaryStatus) { state.statusFilter = button.dataset.summaryStatus; return routeTo("status"); }
+    if (button.hasAttribute("data-toggle-shopping-mode")) { state.shoppingMode = !state.shoppingMode; return renderShopping(); }
+    if (button.dataset.toggleFavourite) {
+      const isFavourite = await toggleFavouriteItem(button.dataset.toggleFavourite);
+      if (state.route === "add") await renderAddItems();
+      else if (state.route === "regular") await renderRegularItems();
+      showToast(isFavourite ? "Added to Regular Items." : "Removed from Regular Items.");
+      return;
+    }
+    if (button.dataset.addAgain) {
+      const added = await addItemAgain(button.dataset.addAgain);
+      await renderRecentlyBought();
+      showToast(added ? "Added to this week’s shopping list." : "That item is already on your list.");
+      return;
+    }
     if (button.dataset.route) return routeTo(button.dataset.route);
     if (button.dataset.category) { state.itemSearch = ""; state.categoryEditMode = false; return routeTo("add", { categoryId: button.dataset.category }); }
     if (button.hasAttribute("data-category-back")) { state.selectedCategoryId = null; state.itemSearch = ""; state.categoryEditMode = false; return renderAddItems(); }
@@ -1125,7 +1222,8 @@ main.addEventListener("click", async event => {
     }
     if (button.dataset.toggleItem) {
       const selected = await toggleLocalItem(button.dataset.toggleItem);
-      await renderAddItems();
+      if (state.route === "regular") await renderRegularItems();
+      else await renderAddItems();
       showToast(selected ? "Item added to your shopping list." : "Item removed from your shopping list.");
       return;
     }
@@ -1162,7 +1260,7 @@ main.addEventListener("click", async event => {
     }
     if (button.hasAttribute("data-finish-shopping")) {
       const confirmed = await confirmAction({ title: "Finish Shopping?", message: "Got It items will be cleared. Couldn’t Get items will stay on the next shopping list. If somebody needs the results, send the list before finishing.", confirmText: "Finish Shopping", danger: false });
-      if (confirmed) { await finishShopping(); await renderShopping(); showToast("Shopping finished. Unavailable items are still on your list."); }
+      if (confirmed) { state.shoppingMode = false; await finishShopping(); await renderShopping(); showToast("Shopping finished. Bought items are now available in Recently Bought. Unavailable items are still on your list.", 5200); }
       return;
     }
     if (button.hasAttribute("data-add-meal")) { const input = document.querySelector("#custom-meal"); const name = await createMealSuggestion(input.value); await renderMeals(); showToast(`${name} was saved as a meal idea.`); return; }
@@ -1263,6 +1361,8 @@ const ROUTE_PARENTS = {
   shopping: "home",
   status: "home",
   meals: "home",
+  regular: "home",
+  recent: "home",
   transfer: "home",
   send: "transfer",
   receive: "transfer",
@@ -1273,7 +1373,8 @@ const ROUTE_PARENTS = {
   people: "settings",
   "custom-items": "settings",
   "data-tools": "settings",
-  accessibility: "settings"
+  accessibility: "settings",
+  help: "settings"
 };
 
 

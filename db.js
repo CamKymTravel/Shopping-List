@@ -270,6 +270,7 @@ export async function setSetting(key, value) {
 }
 
 const HIDDEN_PRESET_ITEMS_SETTING = "hiddenPresetItems";
+const FAVOURITE_ITEMS_SETTING = "favouriteItems";
 
 export async function getHiddenPresetItemIds() {
   const saved = await getSetting(HIDDEN_PRESET_ITEMS_SETTING, []);
@@ -295,6 +296,67 @@ export async function restorePresetItem(itemId) {
   hiddenIds.delete(itemId);
   await setSetting(HIDDEN_PRESET_ITEMS_SETTING, [...hiddenIds].sort());
   return getRecord("items", itemId);
+}
+
+export async function getFavouriteItemIds() {
+  const saved = await getSetting(FAVOURITE_ITEMS_SETTING, []);
+  const items = await getAll("items");
+  const validIds = new Set(items.filter(item => !item.imported).map(item => item.id));
+  return new Set(Array.isArray(saved) ? saved.filter(itemId => typeof itemId === "string" && validIds.has(itemId)) : []);
+}
+
+export async function toggleFavouriteItem(itemId) {
+  const item = await getRecord("items", itemId);
+  if (!item || item.imported) throw new Error("That item cannot be marked as a Regular Item.");
+  const ids = await getFavouriteItemIds();
+  const isFavourite = !ids.has(itemId);
+  if (isFavourite) ids.add(itemId); else ids.delete(itemId);
+  await setSetting(FAVOURITE_ITEMS_SETTING, [...ids].sort());
+  return isFavourite;
+}
+
+export async function getFavouriteItems() {
+  const [ids, items, hiddenIds] = await Promise.all([getFavouriteItemIds(), getAll("items"), getHiddenPresetItemIds()]);
+  return items
+    .filter(item => ids.has(item.id) && !item.imported && (item.isCustom || !hiddenIds.has(item.id)))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+}
+
+export async function getRecentlyBought(limit = 30) {
+  const [items, categories, contributions, hiddenIds] = await Promise.all([getAll("items"), getAll("categories"), getAll("contributions"), getHiddenPresetItemIds()]);
+  const itemMap = new Map(items.map(item => [item.id, item]));
+  const categoryMap = new Map(categories.map(category => [category.id, category]));
+  const seen = new Set();
+  const result = [];
+  const rows = contributions
+    .filter(row => row.status === "cleared" && row.clearedAt && itemMap.has(row.itemId))
+    .sort((a, b) => String(b.clearedAt).localeCompare(String(a.clearedAt)));
+  for (const row of rows) {
+    if (seen.has(row.itemId)) continue;
+    const item = itemMap.get(row.itemId);
+    if (!item || item.imported || (!item.isCustom && hiddenIds.has(item.id))) continue;
+    seen.add(row.itemId);
+    result.push({ item, category: categoryMap.get(item.categoryId), lastBoughtAt: row.clearedAt });
+    if (result.length >= Math.max(1, Math.min(100, Number(limit) || 30))) break;
+  }
+  return result;
+}
+
+export async function addItemAgain(itemId) {
+  const [item, identity, contributions] = await Promise.all([getRecord("items", itemId), getLocalIdentity(), getAll("contributions")]);
+  if (!item || item.imported) throw new Error("That item is no longer available in your categories.");
+  const existing = contributions.find(row => row.itemId === itemId && row.sourceType === "local" && row.status !== "cleared");
+  if (existing) return false;
+  const now = isoNow();
+  await putRecord("contributions", {
+    id: generateId("contribution"), itemId,
+    requesterId: identity.id, requesterName: identity.name,
+    explicitQuantity: null, store: item.defaultStore || "Coles", status: "active",
+    sourceType: "local", sourceSenderId: null, originContributionId: null,
+    createdAt: now, updatedAt: now
+  });
+  await bumpListRevision();
+  return true;
 }
 
 export async function bumpListRevision() {
@@ -665,6 +727,12 @@ export async function getCombinedShoppingList() {
       const displayName = localName || personMap.get(row.requesterId)?.name || row.requesterName || "Someone";
       return [normaliseName(displayName), displayName];
     })).values()];
+    const requesterProfiles = [...new Map(rows.map(row => {
+      const matchedPerson = personMap.get(row.requesterId);
+      const displayName = row.sourceType === "local" ? (owner?.name || "Me") : (matchedPerson?.name || row.requesterName || "Someone");
+      const photo = row.sourceType === "local" ? cleanPhoto(owner?.photo) : cleanPhoto(row.requesterPhoto || matchedPerson?.photo);
+      return [normaliseName(displayName), { name: displayName, photo }];
+    })).values()];
     return {
       itemId,
       item,
@@ -673,6 +741,7 @@ export async function getCombinedShoppingList() {
       status,
       quantity,
       requesters,
+      requesterProfiles,
       store: combineStorePreferences(rows),
       requesterStores: rows.map(row => ({
         name: row.sourceType === "local" ? (owner?.name || "Me") : (personMap.get(row.requesterId)?.name || row.requesterName || "Someone"),
@@ -850,6 +919,17 @@ export async function createTransferPayload(destinationPersonId = null) {
   const peopleByName = new Map(people.map(person => [normaliseName(person.name), person]));
   const activeRows = contributions.filter(row => row.status !== "cleared" && itemMap.has(row.itemId));
   const mealProfiles = new Map();
+  activeRows.forEach(row => {
+    const matchedPerson = peopleById.get(row.requesterId) || peopleByName.get(normaliseName(row.requesterName));
+    const requesterId = cleanText(row.requesterId, 160) || owner.id;
+    if (!mealProfiles.has(requesterId)) {
+      mealProfiles.set(requesterId, {
+        requesterId,
+        requesterName: cleanText(row.requesterName, 60) || matchedPerson?.name || owner.name,
+        photo: cleanPhoto(row.sourceType === "local" ? owner.photo : (row.requesterPhoto || matchedPerson?.photo))
+      });
+    }
+  });
   meals.forEach(row => {
     const matchedPerson = peopleById.get(row.requesterId) || peopleByName.get(normaliseName(row.requesterName));
     const requesterId = cleanText(row.requesterId, 160) || owner.id;
@@ -1009,6 +1089,7 @@ export async function acceptTransfer(payload) {
   const mealUpdates = [];
   const mealAdds = [];
   const now = isoNow();
+  const mealProfileMap = new Map((payload.mealProfiles || []).map(profile => [cleanText(profile.requesterId, 160), profile]));
 
   for (const transferRow of payload.items) {
     let item = findLocalItemForTransfer(transferRow.item, workingItems);
@@ -1044,6 +1125,7 @@ export async function acceptTransfer(payload) {
           itemId: item.id,
           requesterId,
           requesterName: cleanText(transferRow.requesterName, 60) || payload.sender.name,
+          requesterPhoto: cleanPhoto(mealProfileMap.get(requesterId)?.photo),
           status: safeStatus(transferRow.status),
           store: safeStore(transferRow.store),
           explicitQuantity: Number.isFinite(transferRow.explicitQuantity) && transferRow.explicitQuantity > 0 ? Number(transferRow.explicitQuantity) : null,
@@ -1069,6 +1151,7 @@ export async function acceptTransfer(payload) {
         itemId: item.id,
         requesterId: cleanText(transferRow.requesterId, 160) || payload.sender.id,
         requesterName: cleanText(transferRow.requesterName, 60) || payload.sender.name,
+        requesterPhoto: cleanPhoto(mealProfileMap.get(cleanText(transferRow.requesterId, 160) || payload.sender.id)?.photo),
         explicitQuantity: Number.isFinite(transferRow.explicitQuantity) && transferRow.explicitQuantity > 0 ? Number(transferRow.explicitQuantity) : null,
         store: safeStore(transferRow.store),
         status: safeStatus(transferRow.status),
@@ -1082,7 +1165,6 @@ export async function acceptTransfer(payload) {
     }
   }
 
-  const mealProfileMap = new Map((payload.mealProfiles || []).map(profile => [cleanText(profile.requesterId, 160), profile]));
   for (const transferMeal of payload.mealSuggestions) {
     const originMealId = cleanText(transferMeal.originMealId, 180);
     const requesterId = cleanText(transferMeal.requesterId, 160) || payload.sender.id;
