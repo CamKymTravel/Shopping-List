@@ -18,8 +18,8 @@
   <a class="skip-link" href="#main-content">Skip to main content</a>
   <div id="app" class="app-shell">
     <header class="app-header" id="app-header">
-      <button class="icon-button header-back is-hidden" id="back-button" type="button" aria-label="Go back">
-        <span aria-hidden="true">‹</span>
+      <button class="icon-button header-back is-hidden" id="back-button" type="button" aria-label="Go back one screen">
+        <span class="back-arrow" aria-hidden="true">‹</span><span class="back-label">Back</span>
       </button>
       <button class="brand-button" id="home-button" type="button" aria-label="Go to Home">
         <span class="brand-mark" aria-hidden="true">🛍️</span>
@@ -40,6 +40,7 @@
 
   <dialog id="confirm-dialog" class="app-dialog" aria-labelledby="confirm-title" aria-describedby="confirm-message">
     <form method="dialog" class="dialog-card">
+      <button class="dialog-back-button" type="button" data-close-dialog="confirm-dialog" aria-label="Go back without making changes">‹ Back</button>
       <h2 id="confirm-title">Please confirm</h2>
       <p id="confirm-message"></p>
       <div class="dialog-actions">
@@ -51,6 +52,7 @@
 
   <dialog id="custom-item-dialog" class="app-dialog" aria-labelledby="custom-item-dialog-title" aria-describedby="custom-item-dialog-help">
     <form method="dialog" class="dialog-card form-card" id="custom-item-form">
+      <button class="dialog-back-button" type="button" data-close-dialog="custom-item-dialog" aria-label="Go back without saving this item">‹ Back</button>
       <input id="custom-item-id" name="id" type="hidden">
       <h2 id="custom-item-dialog-title">Add Custom Item</h2>
       <p class="form-help" id="custom-item-dialog-help">Add something not already in the list.</p>
@@ -84,6 +86,7 @@
 
   <dialog id="person-dialog" class="app-dialog" aria-labelledby="person-dialog-title">
     <form method="dialog" class="dialog-card form-card" id="person-form">
+      <button class="dialog-back-button" type="button" data-close-dialog="person-dialog" aria-label="Go back without saving this person">‹ Back</button>
       <input id="person-id" name="id" type="hidden">
       <input id="person-photo-data" name="photo" type="hidden">
       <h2 id="person-dialog-title">Add Person</h2>

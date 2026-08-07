@@ -1,7 +1,7 @@
 import { CATEGORIES, PRESET_ITEMS } from "./data.js";
 
 const DB_NAME = "our-shopping-list";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const LOCAL_REQUESTER_ID = "local-device";
 const BACKUP_STORES = [
   "meta", "settings", "people", "categories", "items",
@@ -126,8 +126,7 @@ export function openDatabase() {
         // Earlier builds temporarily exposed imported custom definitions in the
         // weekly item library. If the user deliberately selected one locally,
         // preserve that choice by promoting the definition into their own
-        // permanent custom library during migration. Imported-only definitions
-        // remain transfer data and are hidden from local item management.
+        // permanent custom library during migration.
         const localContributionRequest = contributions.getAll();
         localContributionRequest.onsuccess = () => {
           const locallyUsedItemIds = new Set(
@@ -139,10 +138,28 @@ export function openDatabase() {
             const itemRequest = items.get(itemId);
             itemRequest.onsuccess = () => {
               if (itemRequest.result?.imported) {
-                items.put({ ...itemRequest.result, imported: false, updatedAt: isoNow() });
+                items.put({ ...itemRequest.result, imported: false, receivedFromList: true, updatedAt: isoNow() });
               }
             };
           });
+        };
+      }
+
+      if (event.oldVersion < 5) {
+        // From Build 0.6.5 onward, a custom item received from another person
+        // becomes a normal permanent custom item in the matching category.
+        // Legacy received definitions used the imported-item ID prefix. Promote
+        // those records while preserving items the local user deliberately hid.
+        const legacyImportedRequest = items.getAll();
+        legacyImportedRequest.onsuccess = () => {
+          legacyImportedRequest.result
+            .filter(item => item?.isCustom && item?.imported && String(item.id || "").startsWith("imported-item:"))
+            .forEach(item => items.put({
+              ...item,
+              imported: false,
+              receivedFromList: true,
+              updatedAt: isoNow()
+            }));
         };
       }
     };
@@ -167,6 +184,11 @@ function cleanText(value, maxLength = 100) {
 
 function cleanPhone(value) {
   return String(value || "").trim().replace(/[^0-9+()\-\s]/g, "").slice(0, 30);
+}
+
+function cleanPhoto(value) {
+  if (typeof value !== "string" || value.length > 2_500_000) return "";
+  return /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(value) ? value : "";
 }
 
 function safeStore(value) {
@@ -235,6 +257,34 @@ export async function setSetting(key, value) {
   return putRecord("settings", { key, value });
 }
 
+const HIDDEN_PRESET_ITEMS_SETTING = "hiddenPresetItems";
+
+export async function getHiddenPresetItemIds() {
+  const saved = await getSetting(HIDDEN_PRESET_ITEMS_SETTING, []);
+  const validPresetIds = new Set(PRESET_ITEMS.map(item => item.id));
+  return new Set(
+    Array.isArray(saved)
+      ? saved.filter(itemId => typeof itemId === "string" && validPresetIds.has(itemId))
+      : []
+  );
+}
+
+export async function hidePresetItem(itemId) {
+  const item = await getRecord("items", itemId);
+  if (!item || item.isCustom || item.imported) throw new Error("Only built-in category items can be removed this way.");
+  const hiddenIds = await getHiddenPresetItemIds();
+  hiddenIds.add(item.id);
+  await setSetting(HIDDEN_PRESET_ITEMS_SETTING, [...hiddenIds].sort());
+  return item;
+}
+
+export async function restorePresetItem(itemId) {
+  const hiddenIds = await getHiddenPresetItemIds();
+  hiddenIds.delete(itemId);
+  await setSetting(HIDDEN_PRESET_ITEMS_SETTING, [...hiddenIds].sort());
+  return getRecord("items", itemId);
+}
+
 export async function bumpListRevision() {
   const current = Number(await getMetaValue("listRevision", 1)) || 1;
   const next = current + 1;
@@ -269,7 +319,7 @@ export async function savePerson({ id, name, phone = "", photo = "", isOwner = f
     id: personId,
     name: cleanedName,
     phone: cleanPhone(phone),
-    photo: typeof photo === "string" ? photo.slice(0, 2_500_000) : "",
+    photo: cleanPhoto(photo),
     isOwner: Boolean(isOwner),
     createdAt: existing?.createdAt || now,
     updatedAt: now
@@ -294,7 +344,7 @@ export async function savePerson({ id, name, phone = "", photo = "", isOwner = f
       contributionStore.put({ ...row, requesterId: person.id, requesterName: person.name, sourceType: "local", updatedAt: now });
     });
     allMeals.filter(row => row.sourceType === "local" || row.requesterId === LOCAL_REQUESTER_ID).forEach(row => {
-      mealStore.put({ ...row, requesterId: person.id, requesterName: person.name, sourceType: "local", updatedAt: now });
+      mealStore.put({ ...row, requesterId: person.id, requesterName: person.name, requesterPhoto: person.photo, sourceType: "local", updatedAt: now });
     });
   } else if (existing?.isOwner) {
     person.isOwner = true;
@@ -324,7 +374,7 @@ export async function deletePerson(personId) {
       contributionStore.put({ ...row, requesterId: LOCAL_REQUESTER_ID, requesterName: "Me", updatedAt: now });
     });
     meals.filter(row => row.sourceType === "local").forEach(row => {
-      mealStore.put({ ...row, requesterId: LOCAL_REQUESTER_ID, requesterName: "Me", updatedAt: now });
+      mealStore.put({ ...row, requesterId: LOCAL_REQUESTER_ID, requesterName: "Me", requesterPhoto: "", updatedAt: now });
     });
   }
   await transactionDone(tx);
@@ -332,27 +382,31 @@ export async function deletePerson(personId) {
 }
 
 export async function getItemLibrary() {
-  const [categories, items, contributions] = await Promise.all([
-    getAll("categories"), getAll("items"), getAll("contributions")
+  const [categories, items, contributions, hiddenPresetIds] = await Promise.all([
+    getAll("categories"), getAll("items"), getAll("contributions"), getHiddenPresetItemIds()
   ]);
   const selectedIds = new Set(
     contributions
       .filter(row => row.sourceType === "local" && row.status !== "cleared")
       .map(row => row.itemId)
   );
+  const localLibraryItems = items
+    // Normal received custom items are permanent category items. The imported
+    // flag is now reserved only for a custom item the local user deliberately
+    // removed while another person's active request still needs its definition.
+    .filter(item => !item.imported)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
   return {
     categories: categories.sort((a, b) => {
       const aIndex = CATEGORIES.findIndex(category => category.id === a.id);
       const bIndex = CATEGORIES.findIndex(category => category.id === b.id);
       return (aIndex < 0 ? 999 : aIndex) - (bIndex < 0 ? 999 : bIndex);
     }),
-    // Imported custom definitions are needed to display and merge another
-    // person's current requests, but they do not silently become permanent
-    // presets on this device. The user can explicitly add the same item to
-    // promote it into their own local library.
-    items: items
-      .filter(item => !item.imported)
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)),
+    // Custom items received from another person's list remain available in
+    // their matching category for future shopping lists on this device.
+    items: localLibraryItems.filter(item => item.isCustom || !hiddenPresetIds.has(item.id)),
+    hiddenItems: localLibraryItems.filter(item => !item.isCustom && hiddenPresetIds.has(item.id)),
+    hiddenPresetIds,
     selectedIds
   };
 }
@@ -642,12 +696,19 @@ export async function finishShopping() {
 
 export async function getMealSuggestions() {
   const [meals, people, owner] = await Promise.all([getAll("mealSuggestions"), getPeople(), getOwner()]);
-  const personMap = new Map(people.map(person => [person.id, person.name]));
+  const personById = new Map(people.map(person => [person.id, person]));
+  const personByName = new Map(people.map(person => [normaliseName(person.name), person]));
   return meals
-    .map(row => ({
-      ...row,
-      displayRequesterName: row.sourceType === "local" ? (owner?.name || "Me") : (personMap.get(row.requesterId) || row.requesterName || "Someone")
-    }))
+    .map(row => {
+      const matchedPerson = personById.get(row.requesterId) || personByName.get(normaliseName(row.requesterName));
+      const displayRequesterName = row.sourceType === "local"
+        ? (owner?.name || "Me")
+        : (matchedPerson?.name || row.requesterName || "Someone");
+      const displayRequesterPhoto = row.sourceType === "local"
+        ? cleanPhoto(owner?.photo)
+        : cleanPhoto(row.requesterPhoto || matchedPerson?.photo);
+      return { ...row, displayRequesterName, displayRequesterPhoto };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -664,6 +725,7 @@ export async function toggleMealSuggestion(name) {
   await putRecord("mealSuggestions", {
     id: generateId("meal"), name: cleanText(name, 80),
     requesterId: identity.id, requesterName: identity.name,
+    requesterPhoto: cleanPhoto(identity.owner?.photo),
     sourceType: "local", sourceSenderId: null,
     originMealId: null, createdAt: now, updatedAt: now
   });
@@ -719,7 +781,21 @@ export async function createTransferPayload(destinationPersonId = null) {
   if (!owner) throw new Error("Please set up My Profile in Settings before sending a list.");
   const destination = people.find(person => person.id === destinationPersonId) || null;
   const itemMap = new Map(items.map(item => [item.id, item]));
+  const peopleById = new Map(people.map(person => [person.id, person]));
+  const peopleByName = new Map(people.map(person => [normaliseName(person.name), person]));
   const activeRows = contributions.filter(row => row.status !== "cleared" && itemMap.has(row.itemId));
+  const mealProfiles = new Map();
+  meals.forEach(row => {
+    const matchedPerson = peopleById.get(row.requesterId) || peopleByName.get(normaliseName(row.requesterName));
+    const requesterId = cleanText(row.requesterId, 160) || owner.id;
+    if (!mealProfiles.has(requesterId)) {
+      mealProfiles.set(requesterId, {
+        requesterId,
+        requesterName: cleanText(row.requesterName, 60) || matchedPerson?.name || owner.name,
+        photo: cleanPhoto(row.sourceType === "local" ? owner.photo : (row.requesterPhoto || matchedPerson?.photo))
+      });
+    }
+  });
   const createdAt = isoNow();
   return {
     format: "our-shopping-list-transfer",
@@ -745,7 +821,8 @@ export async function createTransferPayload(destinationPersonId = null) {
       name: cleanText(row.name, 80),
       requesterId: row.requesterId,
       requesterName: row.requesterName || (row.sourceType === "local" ? owner.name : "Someone")
-    }))
+    })),
+    mealProfiles: [...mealProfiles.values()]
   };
 }
 
@@ -758,7 +835,8 @@ export function validateTransferPayload(payload) {
   if (!cleanText(payload.sourceDeviceId, 160)) throw new Error("The source device details are missing.");
   if (!Number.isInteger(Number(payload.revision)) || Number(payload.revision) < 1) throw new Error("The list revision is invalid.");
   if (!Array.isArray(payload.items) || !Array.isArray(payload.mealSuggestions)) throw new Error("The shopping list file is incomplete.");
-  if (payload.items.length > 2000 || payload.mealSuggestions.length > 500) throw new Error("This transfer is too large to import safely.");
+  if (payload.mealProfiles !== undefined && !Array.isArray(payload.mealProfiles)) throw new Error("The meal profile details are invalid.");
+  if (payload.items.length > 2000 || payload.mealSuggestions.length > 500 || (payload.mealProfiles?.length || 0) > 100) throw new Error("This transfer is too large to import safely.");
   const originIds = new Set();
   payload.items.forEach((row, index) => {
     if (!row?.item || !cleanText(row.item.name, 80) || !cleanText(row.item.categoryId, 80)) {
@@ -772,6 +850,14 @@ export function validateTransferPayload(payload) {
         (!Number.isFinite(row.explicitQuantity) || row.explicitQuantity <= 0 || row.explicitQuantity > 9999)) {
       throw new Error(`Item ${index + 1} has an invalid quantity.`);
     }
+  });
+  const profileIds = new Set();
+  (payload.mealProfiles || []).forEach((profile, index) => {
+    const requesterId = cleanText(profile?.requesterId, 160);
+    if (!requesterId || !cleanText(profile?.requesterName, 60)) throw new Error(`Meal profile ${index + 1} is invalid.`);
+    if (profileIds.has(requesterId)) throw new Error("This transfer contains the same meal profile more than once.");
+    if (profile.photo && !cleanPhoto(profile.photo)) throw new Error(`Meal profile ${index + 1} has an invalid photo.`);
+    profileIds.add(requesterId);
   });
   const mealOriginIds = new Set();
   payload.mealSuggestions.forEach((row, index) => {
@@ -863,13 +949,14 @@ export async function acceptTransfer(payload) {
     let item = findLocalItemForTransfer(transferRow.item, workingItems);
     if (!item) {
       item = {
-        id: generateId("imported-item"),
+        id: generateId("custom-item"),
         categoryId: safeCategoryId(transferRow.item.categoryId),
         name: cleanText(transferRow.item.name, 80),
         normalisedName: normaliseName(transferRow.item.name),
         defaultStore: safeStore(transferRow.item.defaultStore),
         isCustom: true,
-        imported: true,
+        imported: false,
+        receivedFromList: true,
         sortOrder: Date.now() + itemAdds.length,
         createdAt: now,
         updatedAt: now
@@ -930,10 +1017,13 @@ export async function acceptTransfer(payload) {
     }
   }
 
+  const mealProfileMap = new Map((payload.mealProfiles || []).map(profile => [cleanText(profile.requesterId, 160), profile]));
   for (const transferMeal of payload.mealSuggestions) {
     const originMealId = cleanText(transferMeal.originMealId, 180);
     const requesterId = cleanText(transferMeal.requesterId, 160) || payload.sender.id;
     const name = cleanText(transferMeal.name, 80);
+    const profile = mealProfileMap.get(requesterId);
+    const requesterPhoto = cleanPhoto(profile?.photo || transferMeal.requesterPhoto);
     const matchingOrigin = meals.find(row => (row.originMealId || row.id) === originMealId && row.sourceSenderId !== payload.sender.id);
     if (matchingOrigin) {
       if (requesterId === payload.sender.id && matchingOrigin.sourceType !== "local") {
@@ -941,7 +1031,8 @@ export async function acceptTransfer(payload) {
           ...matchingOrigin,
           name,
           requesterId,
-          requesterName: cleanText(transferMeal.requesterName, 60) || payload.sender.name,
+          requesterName: cleanText(transferMeal.requesterName, 60) || profile?.requesterName || payload.sender.name,
+          requesterPhoto,
           sourceType: "imported",
           sourceSenderId: payload.sender.id,
           sourceTransferId: payload.transferId,
@@ -955,7 +1046,8 @@ export async function acceptTransfer(payload) {
       id: generateId("meal"),
       name,
       requesterId,
-      requesterName: cleanText(transferMeal.requesterName, 60) || payload.sender.name,
+      requesterName: cleanText(transferMeal.requesterName, 60) || profile?.requesterName || payload.sender.name,
+      requesterPhoto,
       sourceType: "imported",
       sourceSenderId: payload.sender.id,
       sourceTransferId: payload.transferId,

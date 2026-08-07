@@ -1,13 +1,14 @@
-import { CATEGORIES, MEAL_IDEAS } from "./data.js";
+import { CATEGORIES } from "./data.js";
 import {
   openDatabase, getAll, getRecord, getItemLibrary, toggleLocalItem, createCustomItem,
   updateCustomItem, deleteCustomItem, getCombinedShoppingList, setItemStatus,
-  changeLocalQuantity, changeLocalStore, removeLocalItem, finishShopping, getMealSuggestions, toggleMealSuggestion,
+  changeLocalQuantity, changeLocalStore, removeLocalItem, finishShopping, getMealSuggestions,
   createMealSuggestion, removeMealSuggestion, getSummary, getPeople, getOwner,
   savePerson, deletePerson, createTransferPayload, validateTransferPayload,
   previewTransfer, acceptTransfer, exportFullBackup, validateBackup, restoreFullBackup,
   getPinState, setSettingsPin, clearSettingsPin, verifySettingsPin,
-  getAccessibilitySettings, setAccessibilitySettings, consumeRestoreNotice
+  getAccessibilitySettings, setAccessibilitySettings, consumeRestoreNotice,
+  hidePresetItem, restorePresetItem
 } from "./db.js";
 
 const main = document.querySelector("#main-content");
@@ -26,13 +27,14 @@ const personPhotoInput = document.querySelector("#person-photo-input");
 const receiveFileInput = document.querySelector("#receive-file-input");
 const restoreFileInput = document.querySelector("#restore-file-input");
 const updateRegion = document.querySelector("#update-region");
-const APP_BUILD = "0.6.1";
+const APP_BUILD = "0.6.6";
 
 const state = {
   route: "home",
   previousRoute: "home",
   selectedCategoryId: null,
   itemSearch: "",
+  categoryEditMode: false,
   settingsUnlocked: false,
   pendingTransfer: null,
   pendingTransferPreview: null,
@@ -46,12 +48,13 @@ const ROUTES = {
   home: { title: "Our Shopping List", subtitle: "Easy to read. Easy to use.", render: renderHome },
   add: { title: "My Weekly List", subtitle: "Tap items we need", render: renderAddItems },
   shopping: { title: "Shopping List", subtitle: "Everything still needed", render: renderShopping },
-  meals: { title: "Meal Ideas", subtitle: "Meal names only", render: renderMeals },
+  meals: { title: "Meal Ideas", subtitle: "Shared by everyone", render: renderMeals },
   transfer: { title: "Send or Receive", subtitle: "Simple list transfer", render: renderTransfer },
-  send: { title: "Send My List", subtitle: "Message, AirDrop or file", render: renderSend },
-  receive: { title: "Receive a List", subtitle: "Choose and check the file", render: renderReceive },
+  send: { title: "Send My List", subtitle: "Text message or copy", render: renderSend },
+  receive: { title: "Receive a List", subtitle: "Paste and check the list", render: renderReceive },
   "receive-preview": { title: "Check This List", subtitle: "Review before updating", render: renderReceivePreview },
   "receive-success": { title: "List Updated", subtitle: "The transfer is complete", render: renderReceiveSuccess },
+  "copy-success": { title: "List Copied", subtitle: "Open the app on your other device", render: renderCopySuccess },
   settings: { title: "Settings", subtitle: "People, items and backup", render: renderSettings },
   people: { title: "People", subtitle: "Everyone you can send to", render: renderPeople },
   "custom-items": { title: "Custom Items", subtitle: "Change your saved items", render: renderCustomItems },
@@ -86,7 +89,15 @@ function routeTo(route, options = {}) {
   if (SETTINGS_ROUTES.has(state.route) && !SETTINGS_ROUTES.has(route)) state.settingsUnlocked = false;
   if (state.route !== route) state.previousRoute = state.route;
   state.route = route;
-  if (options.categoryId !== undefined) state.selectedCategoryId = options.categoryId;
+  if (options.categoryId !== undefined) {
+    if (state.selectedCategoryId !== options.categoryId) state.categoryEditMode = false;
+    state.selectedCategoryId = options.categoryId;
+  }
+  if (route !== "add") state.categoryEditMode = false;
+  if (route === "home") {
+    state.selectedCategoryId = null;
+    state.itemSearch = "";
+  }
   history.replaceState({ route }, "", `#${route}`);
   renderRoute();
 }
@@ -186,6 +197,80 @@ function makeTransferFile(payload) {
   return new File([text], filename, { type: "application/json" });
 }
 
+
+const TRANSFER_TEXT_PREFIX = "OURSHOPPINGLIST1:";
+
+function bytesToBase64Url(bytes) {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlToBytes(value) {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, character => character.charCodeAt(0));
+}
+
+function transferText(payload) {
+  const encoded = bytesToBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
+  return [
+    `OUR SHOPPING LIST from ${payload.sender.name}`,
+    "",
+    "To update your app:",
+    "1. Copy this whole message.",
+    "2. Open Our Shopping List.",
+    "3. Tap Receive a List, then Paste and Check.",
+    "",
+    `${TRANSFER_TEXT_PREFIX}${encoded}`
+  ].join("\n");
+}
+
+function parseTransferText(value) {
+  const text = String(value || "").trim();
+  if (!text) throw new Error("Nothing was pasted. Copy the shopping-list message first.");
+  if (text.startsWith("{")) {
+    try { return validateTransferPayload(JSON.parse(text)); }
+    catch { throw new Error("The pasted text is not a valid shopping list."); }
+  }
+  const match = text.match(/OURSHOPPINGLIST1:([A-Za-z0-9_-]+)/);
+  if (!match) throw new Error("This message does not contain an Our Shopping List update.");
+  let payload;
+  try {
+    const json = new TextDecoder().decode(base64UrlToBytes(match[1]));
+    payload = JSON.parse(json);
+  } catch {
+    throw new Error("The copied shopping-list message is incomplete. Copy the whole message and try again.");
+  }
+  return validateTransferPayload(payload);
+}
+
+async function writeClipboardText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.opacity = "0";
+  document.body.append(area);
+  area.select();
+  const copied = document.execCommand("copy");
+  area.remove();
+  if (!copied) throw new Error("This device could not copy the list automatically.");
+}
+
+async function loadPendingTransfer(payload) {
+  state.pendingTransfer = validateTransferPayload(payload);
+  state.pendingTransferPreview = await previewTransfer(state.pendingTransfer);
+  routeTo("receive-preview");
+}
+
 function transferSummary(payload) {
   const grouped = new Map();
   payload.items.filter(row => ["active", "got", "unavailable"].includes(row.status)).forEach(row => {
@@ -210,7 +295,11 @@ function transferSummary(payload) {
   });
   const visible = lines.slice(0, 30);
   if (lines.length > visible.length) visible.push(`• Plus ${lines.length - visible.length} more items`);
-  return [`Our Shopping List from ${payload.sender.name}`, "", ...(visible.length ? visible : ["No items needed."])].join("\n");
+  const mealLines = payload.mealSuggestions.slice(0, 20).map(row => `• ${row.name} — suggested by ${row.requesterName || payload.sender.name}`);
+  if (payload.mealSuggestions.length > mealLines.length) mealLines.push(`• Plus ${payload.mealSuggestions.length - mealLines.length} more meal ideas`);
+  const sections = [`Our Shopping List from ${payload.sender.name}`, "", ...(visible.length ? visible : ["No items needed."])];
+  if (mealLines.length) sections.push("", "Meal Ideas", ...mealLines);
+  return sections.join("\n");
 }
 
 async function renderHome() {
@@ -232,21 +321,21 @@ async function renderHome() {
         <button class="home-action action-green" data-route="transfer"><span class="action-icon">👥</span><span>Send or Receive a List</span><span class="action-arrow">›</span></button>
         <button class="home-action action-orange" data-route="meals"><span class="action-icon">🍽️</span><span>Meal Ideas</span><span class="action-arrow">›</span></button>
       </nav>
-      <div class="secondary-home-row"><button class="text-button" data-route="settings">⚙️ Settings</button></div>
     </section>`;
 }
 
 async function renderAddItems() {
-  const { categories, items, selectedIds } = await getItemLibrary();
+  const { categories, items, hiddenItems, selectedIds } = await getItemLibrary();
   const selectedCategory = categories.find(category => category.id === state.selectedCategoryId);
   if (!selectedCategory) {
+    state.categoryEditMode = false;
     main.innerHTML = `
       <section class="screen">
         <h1 class="section-heading">Add What We Need</h1>
         <p class="section-subtitle">Choose a shopping category.</p>
         <div class="category-grid">
           ${categories.map(category => {
-            const count = items.filter(item => item.categoryId === category.id && selectedIds.has(item.id)).length;
+            const count = [...items, ...hiddenItems].filter(item => item.categoryId === category.id && selectedIds.has(item.id)).length;
             return `<button class="category-card" style="${categoryStyle(category)}" data-category="${category.id}">
               <span class="category-emoji" aria-hidden="true">${category.emoji}</span>
               <span class="category-name-row"><span class="category-name">${escapeHTML(category.shortName)}</span><span class="category-count">${count}</span></span>
@@ -260,24 +349,49 @@ async function renderAddItems() {
 
   const filter = state.itemSearch.trim().toLowerCase();
   const categoryItems = items.filter(item => item.categoryId === selectedCategory.id && (!filter || item.name.toLowerCase().includes(filter)));
+  const removedItems = hiddenItems.filter(item => item.categoryId === selectedCategory.id);
+  const editMode = state.categoryEditMode;
   main.innerHTML = `
     <section class="screen">
       <button class="text-button align-left" data-category-back>‹ All Categories</button>
+      <div class="category-edit-heading">
+        <div>
+          <h1 class="section-heading">${escapeHTML(selectedCategory.name)}</h1>
+          <p class="section-subtitle">${editMode ? "Remove items you never buy, or restore them later." : "Tap an item to add it to your list."}</p>
+        </div>
+        <button class="button ${editMode ? "button-success" : "button-secondary"} category-edit-button" data-toggle-category-edit>${editMode ? "✓ Done" : "✏️ Edit List"}</button>
+      </div>
+      ${editMode ? `<div class="notice-card compact-notice"><strong>Editing this category</strong><span>Removing an item only hides it from this category. It does not remove anything already on the Shopping List.</span></div>` : ""}
       <div class="panel" style="${categoryStyle(selectedCategory)}" aria-labelledby="selected-category-heading">
         <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${selectedCategory.emoji}</span><strong id="selected-category-heading">${escapeHTML(selectedCategory.name)}</strong><span class="panel-count">${categoryItems.length} items</span></div>
         <div class="panel-body">
           <div class="list-toolbar"><input class="search-field" id="item-search" type="search" placeholder="Search this category" value="${escapeHTML(state.itemSearch)}" aria-label="Search ${escapeHTML(selectedCategory.name)}"></div>
-          ${categoryItems.length ? categoryItems.map(item => `
+          ${categoryItems.length ? categoryItems.map(item => editMode ? `
+            <div class="item-row category-management-row">
+              <div class="item-copy"><div class="item-name">${escapeHTML(item.name)}</div><div class="item-meta">${item.isCustom ? "Custom item" : "Built-in item"} • ${escapeHTML(item.defaultStore)}</div></div>
+              <div class="category-item-actions">
+                ${item.isCustom
+                  ? `<button class="button button-secondary" data-edit-custom="${item.id}">Edit</button><button class="button button-danger" data-delete-custom="${item.id}">Delete</button>`
+                  : `<button class="button button-danger" data-hide-preset="${item.id}">Remove</button>`}
+              </div>
+            </div>` : `
             <div class="item-row">
               <button class="item-select" style="--accent:${selectedCategory.accent}" data-toggle-item="${item.id}" aria-pressed="${selectedIds.has(item.id)}" aria-label="${selectedIds.has(item.id) ? "Remove" : "Add"} ${escapeHTML(item.name)}">${selectedIds.has(item.id) ? "✓" : ""}</button>
               <div class="item-copy"><div class="item-name">${escapeHTML(item.name)}</div>${item.isCustom ? '<div class="item-meta">Custom item</div>' : ""}</div>
               <span class="store-pill store-${escapeHTML(item.defaultStore)}">${escapeHTML(item.defaultStore)}</span>
-            </div>`).join("") : `<div class="empty-card borderless"><div class="empty-icon">🔎</div><h2>No matching items</h2><p>Try a different search or add a custom item.</p></div>`}
+            </div>`).join("") : `<div class="empty-card borderless"><div class="empty-icon">${editMode ? "📝" : "🔎"}</div><h2>${editMode ? "No visible items" : "No matching items"}</h2><p>${editMode ? "Restore a removed item below or add a custom item." : "Try a different search or add a custom item."}</p></div>`}
         </div>
       </div>
+      ${editMode && removedItems.length ? `
+        <section class="panel removed-items-panel" aria-labelledby="removed-items-heading">
+          <div class="panel-header"><span class="panel-emoji" aria-hidden="true">↩️</span><strong id="removed-items-heading">Removed Items</strong><span class="panel-count">${removedItems.length}</span></div>
+          <div class="panel-body">
+            ${removedItems.map(item => `<div class="item-row category-management-row restored-item-row"><div class="item-copy"><div class="item-name">${escapeHTML(item.name)}</div><div class="item-meta">Hidden from ${escapeHTML(selectedCategory.name)}</div></div><div class="category-item-actions"><button class="button button-secondary" data-restore-preset="${item.id}">Restore</button></div></div>`).join("")}
+          </div>
+        </section>` : ""}
       <div class="sticky-actions">
         <button class="button button-primary button-wide" data-custom-item="${selectedCategory.id}">＋ Add Custom Item</button>
-        <button class="button button-success button-wide" data-route="shopping">🛒 Open Shopping List</button>
+        ${editMode ? `<button class="button button-success button-wide" data-toggle-category-edit>✓ Done Editing</button>` : `<button class="button button-success button-wide" data-route="shopping">🛒 Open Shopping List</button>`}
       </div>
     </section>`;
   const search = document.querySelector("#item-search");
@@ -289,7 +403,7 @@ async function renderAddItems() {
 }
 
 async function renderShopping() {
-  const combined = await getCombinedShoppingList();
+  const [combined, meals] = await Promise.all([getCombinedShoppingList(), getMealSuggestions()]);
   const active = combined.filter(row => row.status === "active");
   const got = combined.filter(row => row.status === "got");
   const unavailable = combined.filter(row => row.status === "unavailable");
@@ -302,6 +416,7 @@ async function renderShopping() {
   main.innerHTML = `
     <section class="screen">
       <div class="summary-card compact-summary"><h1>${active.length} ${active.length === 1 ? "item" : "items"} to buy</h1></div>
+      <button class="meal-shortcut-button" data-route="meals"><span aria-hidden="true">🍽️</span><span><strong>View Meal Ideas</strong><small>${meals.length} shared ${meals.length === 1 ? "idea" : "ideas"}</small></span><span aria-hidden="true">›</span></button>
       ${active.length ? [...grouped.entries()].map(([categoryId, rows]) => {
         const category = rows[0].category || CATEGORIES.find(row => row.id === categoryId);
         return `<section class="panel shopping-category" style="${categoryStyle(category)}" aria-labelledby="shopping-category-${escapeHTML(category.id)}">
@@ -354,59 +469,81 @@ function renderStatusRow(row, currentStatus) {
 }
 
 async function renderMeals() {
-  const saved = await getMealSuggestions();
-  const localNames = new Set(saved.filter(row => row.sourceType === "local").map(row => row.name.toLowerCase()));
+  const [saved, owner] = await Promise.all([getMealSuggestions(), getOwner()]);
+  if (!owner) {
+    main.innerHTML = `<section class="screen"><div class="empty-card"><div class="empty-icon">👤</div><h2>Set up your profile first</h2><p>Your name and photo show who suggested each meal.</p><button class="button button-primary" data-route="people">Set Up My Profile</button></div></section>`;
+    return;
+  }
   main.innerHTML = `
     <section class="screen">
       <h1 class="section-heading">Meal Ideas</h1>
-      <p class="section-subtitle">Choose meal names. This does not add ingredients.</p>
-      <div class="meal-grid">
-        ${MEAL_IDEAS.map(meal => `<button class="meal-button" data-meal="${escapeHTML(meal)}" aria-pressed="${localNames.has(meal.toLowerCase())}">${localNames.has(meal.toLowerCase()) ? "✓ " : ""}${escapeHTML(meal)}</button>`).join("")}
+      <p class="section-subtitle">Anyone can add a meal name. Add any ingredients you need separately to the shopping list.</p>
+      <div class="panel meal-entry-panel">
+        <div class="panel-body padded-panel">
+          <label for="custom-meal"><strong>Add a meal idea</strong></label>
+          <input class="search-field" id="custom-meal" maxlength="80" autocomplete="off" placeholder="Example: Chicken salad">
+          <button class="button button-primary button-wide top-gap" data-add-meal>Add Meal Idea</button>
+        </div>
       </div>
-      <div class="panel"><div class="panel-body padded-panel"><label for="custom-meal"><strong>Add your own meal name</strong></label><input class="search-field" id="custom-meal" maxlength="80" placeholder="Example: Chicken salad"><button class="button button-primary button-wide top-gap" data-add-meal>Add Meal Idea</button></div></div>
-      <section class="panel">
-        <div class="panel-header"><span class="panel-emoji">🍽️</span><strong>Saved Meal Ideas</strong><span class="panel-count">${saved.length}</span></div>
-        <div class="saved-meals">${saved.length ? saved.map(row => `<div class="saved-meal-row"><span><strong>${escapeHTML(row.name)}</strong><small>Suggested by ${escapeHTML(row.displayRequesterName)}</small></span>${row.sourceType === "local" ? `<button class="undo-button" data-remove-meal="${row.id}">Remove</button>` : ""}</div>`).join("") : "<p>No meal ideas saved yet.</p>"}</div>
+      <section class="panel meal-list-panel">
+        <div class="panel-header"><span class="panel-emoji" aria-hidden="true">🍽️</span><strong>Everyone’s Meal Ideas</strong><span class="panel-count">${saved.length}</span></div>
+        <div class="saved-meals">${saved.length ? saved.map(row => `<article class="saved-meal-row">
+          ${avatarMarkup({ name: row.displayRequesterName, photo: row.displayRequesterPhoto })}
+          <span class="saved-meal-copy"><strong>${escapeHTML(row.name)}</strong><small>Suggested by ${escapeHTML(row.displayRequesterName)}</small></span>
+          ${row.sourceType === "local" ? `<button class="undo-button" data-remove-meal="${row.id}" aria-label="Remove ${escapeHTML(row.name)} from my meal ideas">Remove Mine</button>` : ""}
+        </article>`).join("") : `<div class="meal-empty-state"><span aria-hidden="true">🍽️</span><strong>No meal ideas yet</strong><p>Type the first meal idea above.</p></div>`}</div>
       </section>
     </section>`;
 }
 
 async function renderTransfer() {
+  const owner = await getOwner();
   main.innerHTML = `
     <section class="screen">
       <h1 class="section-heading">Send or Receive a List</h1>
-      <p class="section-subtitle">Your data stays on this device unless you choose to transfer it.</p>
-      <div class="transfer-choice-grid">
-        <button class="transfer-choice send-choice" data-route="send"><span aria-hidden="true">📤</span><strong>Send My List</strong><small>Use Message, AirDrop, Apple Share or a list file.</small></button>
-        <button class="transfer-choice receive-choice" data-route="receive"><span aria-hidden="true">📥</span><strong>Receive a List</strong><small>Choose a file, check it, then accept the update.</small></button>
+      <p class="section-subtitle">Choose one large button. The easiest iPad-to-iPhone method is first.</p>
+      <div class="transfer-choice-grid transfer-simple-grid">
+        <button class="transfer-choice self-copy-choice" data-copy-self ${owner ? "" : "disabled"}><span aria-hidden="true">📱</span><strong>Copy List to My Phone</strong><small>On your iPad, copy the list. Then open this app on your iPhone and tap Receive a List.</small></button>
+        <button class="transfer-choice send-choice" data-route="send"><span aria-hidden="true">💬</span><strong>Send List to Someone</strong><small>Choose a saved person, then send the prepared list by text message.</small></button>
+        <button class="transfer-choice receive-choice" data-route="receive"><span aria-hidden="true">📥</span><strong>Receive a List</strong><small>Paste a copied list from Messages or from your other Apple device.</small></button>
       </div>
-      <div class="notice-card"><strong>Apple controls the final sharing screen</strong><span>The app prepares the list. You choose the final Message recipient or AirDrop device on Apple’s screen.</span></div>
+      ${owner ? "" : `<div class="notice-card"><strong>Set up My Profile first</strong><span>Your name is needed before this device can copy or send a list.</span><button class="button button-primary button-wide" data-route="people">Set Up My Profile</button></div>`}
     </section>`;
 }
 
 async function renderSend() {
-  const [owner, people, combined] = await Promise.all([getOwner(), getPeople(), getCombinedShoppingList()]);
+  const [owner, people, combined, meals] = await Promise.all([getOwner(), getPeople(), getCombinedShoppingList(), getMealSuggestions()]);
   if (!owner) {
     main.innerHTML = `<section class="screen"><div class="empty-card"><div class="empty-icon">👤</div><h2>Set up your profile first</h2><p>Your name identifies who sent the list.</p><button class="button button-primary" data-route="people">Set Up My Profile</button></div></section>`;
     return;
   }
   main.innerHTML = `
     <section class="screen">
-      <div class="summary-card compact-summary"><h1>${combined.length} ${combined.length === 1 ? "item" : "items"} ready to send</h1></div>
+      <div class="summary-card compact-summary"><h1>${combined.length} ${combined.length === 1 ? "item" : "items"} and ${meals.length} meal ${meals.length === 1 ? "idea" : "ideas"} ready to send</h1></div>
       <h2 class="section-heading smaller-heading">Who are you sending to?</h2>
-      <p class="section-subtitle">Your own profile is included so you can send between your devices.</p>
+      <p class="section-subtitle">Tap one large green button. Shopping items and meal ideas travel together.</p>
       <div class="people-list send-people-list">
         ${people.length ? people.map(person => `<article class="person-card send-person-card">
           ${avatarMarkup(person)}
           <div class="person-card-copy"><strong>${escapeHTML(person.name)}</strong>${person.isOwner ? '<span class="owner-badge">My Profile</span>' : ""}<small>${escapeHTML(person.phone || "No mobile number saved")}</small></div>
-          <div class="person-send-actions">
-            <button class="button button-success" data-share-person="${person.id}">Message / AirDrop</button>
-            ${person.phone ? `<button class="button button-secondary" data-sms-person="${person.id}">Text Readable List</button>` : ""}
-            <button class="text-button" data-export-person="${person.id}">Export List File</button>
+          <div class="person-send-actions simple-send-actions">
+            ${person.isOwner
+              ? `<button class="button button-success button-very-large" data-copy-person="${person.id}">Copy List to My Phone</button>`
+              : person.phone
+                ? `<button class="button button-success button-very-large" data-message-person="${person.id}">Send by Text Message</button>`
+                : `<button class="button button-success button-very-large" data-share-text-person="${person.id}">Share This List</button>`}
+            <details class="transfer-more-options">
+              <summary>Other Ways to Send</summary>
+              <div class="transfer-more-actions">
+                <button class="button button-secondary" data-share-person="${person.id}">AirDrop or Share File</button>
+                ${person.phone ? `<button class="button button-secondary" data-sms-person="${person.id}">Send Readable List Only</button>` : ""}
+                <button class="text-button" data-export-person="${person.id}">Save List File</button>
+              </div>
+            </details>
           </div>
         </article>`).join("") : `<div class="empty-card"><h2>No people added yet</h2><p>Add yourself and anyone you share lists with.</p><button class="button button-primary" data-route="people">Add People</button></div>`}
       </div>
-      <div class="notice-card"><strong>For a list that can be imported</strong><span>Use Message / AirDrop or Export List File. The plain text shortcut is only for reading.</span></div>
+      <div class="notice-card"><strong>Simple method for Mum</strong><span>Use Copy List to My Phone between her iPad and iPhone. Use Send by Text Message when somebody else sends her a list.</span></div>
     </section>`;
 }
 
@@ -416,21 +553,46 @@ async function renderReceive() {
       <div class="receive-hero">
         <span class="receive-icon" aria-hidden="true">📥</span>
         <h1>Receive a List</h1>
-        <p>Choose the <strong>.shoppinglist</strong> file you received. You will see what changes before anything is saved.</p>
-        <button class="button button-primary button-wide button-very-large" data-choose-receive-file>Choose Shopping List File</button>
+        <p>First copy the whole shopping-list message. Then tap the large button below.</p>
+        <button class="button button-success button-wide button-very-large" data-paste-transfer>Paste and Check List</button>
       </div>
-      <ol class="plain-steps">
-        <li><strong>1.</strong> Save the file from Message or AirDrop.</li>
-        <li><strong>2.</strong> Tap the large button above.</li>
-        <li><strong>3.</strong> Check the sender and accept the update.</li>
+      <ol class="plain-steps simple-receive-steps">
+        <li><strong>1.</strong> Copy the whole message, or copy the list on your iPad.</li>
+        <li><strong>2.</strong> Open this app and tap <strong>Paste and Check List</strong>.</li>
+        <li><strong>3.</strong> Check the sender, then tap <strong>Accept and Update</strong>.</li>
       </ol>
+      <details class="transfer-other-card">
+        <summary>Other Ways to Receive</summary>
+        <div class="transfer-other-body">
+          <label for="manual-transfer-text"><strong>Paste the message here manually</strong></label>
+          <textarea id="manual-transfer-text" rows="5" autocomplete="off" placeholder="Press and hold here, then tap Paste"></textarea>
+          <button class="button button-secondary button-wide" data-check-manual-transfer>Check Pasted List</button>
+          <button class="button button-secondary button-wide" data-choose-receive-file>Choose a Shopping List File</button>
+        </div>
+      </details>
+    </section>`;
+}
+
+async function renderCopySuccess() {
+  main.innerHTML = `
+    <section class="screen success-screen copy-success-screen">
+      <div class="success-mark" aria-hidden="true">✓</div>
+      <h1>List Copied</h1>
+      <p>Now open <strong>Our Shopping List</strong> on your other device.</p>
+      <div class="copy-next-steps">
+        <strong>On the other device:</strong>
+        <span>1. Tap Send or Receive a List.</span>
+        <span>2. Tap Receive a List.</span>
+        <span>3. Tap Paste and Check List.</span>
+      </div>
+      <button class="button button-primary button-wide button-very-large" data-route="home">Done</button>
     </section>`;
 }
 
 async function renderReceivePreview() {
   const preview = state.pendingTransferPreview;
   if (!preview || !state.pendingTransfer) {
-    main.innerHTML = `<section class="screen"><div class="empty-card"><h2>No list is waiting</h2><p>Choose a shopping-list file first.</p><button class="button button-primary" data-route="receive">Choose a File</button></div></section>`;
+    main.innerHTML = `<section class="screen"><div class="empty-card"><h2>No list is waiting</h2><p>Paste a shopping-list message or choose a file first.</p><button class="button button-primary" data-route="receive">Choose a File</button></div></section>`;
     return;
   }
   const upToDate = preview.status === "up-to-date";
@@ -710,6 +872,78 @@ async function exportTransfer(personId) {
   showToast("List file prepared. Send it through Message, AirDrop or Files.", 4200);
 }
 
+async function copyTransferText(personId = null) {
+  const payload = await createTransferPayload(personId);
+  await writeClipboardText(transferText(payload));
+  routeTo("copy-success");
+}
+
+async function shareTextTransfer(personId) {
+  const payload = await createTransferPayload(personId);
+  const text = transferText(payload);
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: "Our Shopping List", text });
+      showToast("The list was handed to Apple Share.");
+      return;
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        showToast("Sharing was cancelled. Nothing was changed.");
+        return;
+      }
+    }
+  }
+  await writeClipboardText(text);
+  routeTo("copy-success");
+}
+
+async function sendTransferMessage(personId) {
+  const person = await getRecord("people", personId);
+  if (!person?.phone) return shareTextTransfer(personId);
+  const payload = await createTransferPayload(personId);
+  const text = transferText(payload);
+  const phone = person.phone.replace(/[^0-9+]/g, "");
+  if (text.length <= 7000) {
+    window.location.href = `sms:${phone}&body=${encodeURIComponent(text)}`;
+    return;
+  }
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: `Shopping list for ${person.name}`, text });
+      showToast("Choose Messages, then send the prepared list.");
+      return;
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        showToast("Sending was cancelled. Nothing was changed.");
+        return;
+      }
+    }
+  }
+  await writeClipboardText(text);
+  routeTo("copy-success");
+}
+
+async function pasteTransferFromClipboard() {
+  if (!navigator.clipboard?.readText) {
+    const details = document.querySelector(".transfer-other-card");
+    if (details) details.open = true;
+    document.querySelector("#manual-transfer-text")?.focus();
+    throw new Error("Press and hold in the box below, tap Paste, then tap Check Pasted List.");
+  }
+  try {
+    const text = await navigator.clipboard.readText();
+    await loadPendingTransfer(parseTransferText(text));
+  } catch (error) {
+    const details = document.querySelector(".transfer-other-card");
+    if (details) details.open = true;
+    if (error?.name === "NotAllowedError") {
+      document.querySelector("#manual-transfer-text")?.focus();
+      throw new Error("Allow Paste when your device asks. If it does not ask, press and hold in the box below and tap Paste.");
+    }
+    throw error;
+  }
+}
+
 async function shareTransfer(personId) {
   const payload = await createTransferPayload(personId);
   const file = makeTransferFile(payload);
@@ -781,8 +1015,25 @@ main.addEventListener("click", async event => {
   button.setAttribute("aria-busy", "true");
   try {
     if (button.dataset.route) return routeTo(button.dataset.route);
-    if (button.dataset.category) { state.itemSearch = ""; return routeTo("add", { categoryId: button.dataset.category }); }
-    if (button.hasAttribute("data-category-back")) { state.selectedCategoryId = null; state.itemSearch = ""; return renderAddItems(); }
+    if (button.dataset.category) { state.itemSearch = ""; state.categoryEditMode = false; return routeTo("add", { categoryId: button.dataset.category }); }
+    if (button.hasAttribute("data-category-back")) { state.selectedCategoryId = null; state.itemSearch = ""; state.categoryEditMode = false; return renderAddItems(); }
+    if (button.hasAttribute("data-toggle-category-edit")) { state.categoryEditMode = !state.categoryEditMode; state.itemSearch = ""; return renderAddItems(); }
+    if (button.dataset.hidePreset) {
+      const item = await getRecord("items", button.dataset.hidePreset);
+      const confirmed = await confirmAction({
+        title: "Remove From This Category?",
+        message: `${item?.name || "This item"} will no longer appear in this category. You can restore it at any time by choosing Edit List.`,
+        confirmText: "Remove Item"
+      });
+      if (confirmed) { await hidePresetItem(button.dataset.hidePreset); await renderAddItems(); showToast(`${item?.name || "Item"} removed from this category.`); }
+      return;
+    }
+    if (button.dataset.restorePreset) {
+      const item = await restorePresetItem(button.dataset.restorePreset);
+      await renderAddItems();
+      showToast(`${item?.name || "Item"} restored.`);
+      return;
+    }
     if (button.dataset.toggleItem) {
       const selected = await toggleLocalItem(button.dataset.toggleItem);
       await renderAddItems();
@@ -796,7 +1047,8 @@ main.addEventListener("click", async event => {
       const confirmed = await confirmAction({ title: "Delete Custom Item?", message: `${item?.name || "This item"} will be removed from your saved items and your part of the current list. Other people’s requests will stay.`, confirmText: "Delete Item" });
       if (confirmed) {
         const result = await deleteCustomItem(button.dataset.deleteCustom);
-        await renderCustomItems();
+        if (state.route === "add") await renderAddItems();
+        else await renderCustomItems();
         showToast(result.preservedSharedRequests ? "Your custom item was removed. Other people’s request is still on the Shopping List." : "Custom item deleted.", 4800);
       }
       return;
@@ -819,7 +1071,6 @@ main.addEventListener("click", async event => {
       if (confirmed) { await finishShopping(); await renderShopping(); showToast("Shopping finished. Unavailable items are still on your list."); }
       return;
     }
-    if (button.dataset.meal) { const selected = await toggleMealSuggestion(button.dataset.meal); await renderMeals(); showToast(selected ? "Meal idea saved." : "Meal idea removed."); return; }
     if (button.hasAttribute("data-add-meal")) { const input = document.querySelector("#custom-meal"); const name = await createMealSuggestion(input.value); await renderMeals(); showToast(`${name} was saved as a meal idea.`); return; }
     if (button.dataset.removeMeal) { await removeMealSuggestion(button.dataset.removeMeal); await renderMeals(); showToast("Meal idea removed."); return; }
     if (button.hasAttribute("data-add-person")) return openPerson();
@@ -830,6 +1081,12 @@ main.addEventListener("click", async event => {
       if (confirmed) { await deletePerson(button.dataset.deletePerson); await renderPeople(); showToast("Person deleted."); }
       return;
     }
+    if (button.hasAttribute("data-copy-self")) { const owner = await getOwner(); if (!owner) throw new Error("Set up My Profile first."); return copyTransferText(owner.id); }
+    if (button.dataset.copyPerson) return copyTransferText(button.dataset.copyPerson);
+    if (button.dataset.messagePerson) return sendTransferMessage(button.dataset.messagePerson);
+    if (button.dataset.shareTextPerson) return shareTextTransfer(button.dataset.shareTextPerson);
+    if (button.hasAttribute("data-paste-transfer")) return pasteTransferFromClipboard();
+    if (button.hasAttribute("data-check-manual-transfer")) return loadPendingTransfer(parseTransferText(document.querySelector("#manual-transfer-text")?.value));
     if (button.dataset.sharePerson) return shareTransfer(button.dataset.sharePerson);
     if (button.dataset.exportPerson) return exportTransfer(button.dataset.exportPerson);
     if (button.dataset.smsPerson) return sendReadableText(button.dataset.smsPerson);
@@ -906,22 +1163,49 @@ main.addEventListener("change", async event => {
   }
 });
 
+const ROUTE_PARENTS = {
+  add: "home",
+  shopping: "home",
+  meals: "home",
+  transfer: "home",
+  send: "transfer",
+  receive: "transfer",
+  "receive-preview": "receive",
+  "receive-success": "transfer",
+  "copy-success": "transfer",
+  settings: "home",
+  people: "settings",
+  "custom-items": "settings",
+  "data-tools": "settings",
+  accessibility: "settings"
+};
+
+
+main.addEventListener("keydown", event => {
+  if (event.key !== "Enter" || event.target?.id !== "custom-meal") return;
+  event.preventDefault();
+  document.querySelector("[data-add-meal]")?.click();
+});
+
 backButton.addEventListener("click", () => {
   if (state.route === "add" && state.selectedCategoryId) {
     state.selectedCategoryId = null;
     state.itemSearch = "";
+    state.categoryEditMode = false;
     return renderAddItems();
   }
-  const parentRoutes = {
-    settings: "home",
-    send: "transfer", receive: "transfer", "receive-preview": "receive", "receive-success": "transfer",
-    people: "settings", "custom-items": "settings", "data-tools": "settings", accessibility: "settings"
-  };
-  routeTo(parentRoutes[state.route] || state.previousRoute || "home");
+  routeTo(ROUTE_PARENTS[state.route] || "home");
 });
 
 homeButton.addEventListener("click", () => routeTo("home"));
 settingsButton.addEventListener("click", () => routeTo("settings"));
+
+document.addEventListener("click", event => {
+  const button = event.target.closest("button[data-close-dialog]");
+  if (!button) return;
+  const dialog = document.getElementById(button.dataset.closeDialog);
+  if (dialog?.open) dialog.close("cancel");
+});
 customItemForm.addEventListener("submit", saveCustomItem);
 personForm.addEventListener("submit", savePersonForm);
 
@@ -947,9 +1231,7 @@ personPhotoInput.addEventListener("change", async () => {
 receiveFileInput.addEventListener("change", async () => {
   try {
     const payload = validateTransferPayload(await readJSONFile(receiveFileInput.files?.[0]));
-    state.pendingTransfer = payload;
-    state.pendingTransferPreview = await previewTransfer(payload);
-    routeTo("receive-preview");
+    await loadPendingTransfer(payload);
   } catch (error) {
     showToast(error.message, 5200);
   }
