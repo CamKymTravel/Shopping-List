@@ -7,10 +7,10 @@ export const CATEGORIES = [
   { id: "bakery", name: "Bakery", shortName: "Bakery", emoji: "🍞🥐", accent: "#b46b13", tint: "#fff5e8" },
   { id: "pantry", name: "Pantry", shortName: "Pantry", emoji: "🥫🍝", accent: "#e96f12", tint: "#fff3e6" },
   { id: "frozen", name: "Frozen", shortName: "Frozen", emoji: "❄️🍨", accent: "#3185b9", tint: "#eef9ff" },
-  { id: "drinks", name: "Drinks", shortName: "Drinks", emoji: "🧃☕️", accent: "#137c8c", tint: "#eafafa" },
+  { id: "drinks", name: "Drinks", shortName: "Drinks", emoji: "🧃☕", accent: "#137c8c", tint: "#eafafa" },
   { id: "household", name: "Household", shortName: "Household", emoji: "🧴🧻", accent: "#6d3db5", tint: "#f4effc" },
-  { id: "toiletries", name: "Toiletries", shortName: "Toiletries", emoji: "🫧🪥", accent: "#b73e8b", tint: "#fff0f8" },
-  { id: "pharmacy", name: "Pharmacy", shortName: "Pharmacy", emoji: "💊🩹", accent: "#d34b4b", tint: "#fff0f0" },
+  { id: "toiletries", name: "Toiletries", shortName: "Toiletries", emoji: "🧼🪥", accent: "#b73e8b", tint: "#fff0f8" },
+  { id: "pharmacy", name: "Pharmacy", shortName: "Pharmacy", emoji: "🩹🌡️", accent: "#d34b4b", tint: "#fff0f0" },
   { id: "pet-supplies", name: "Pet Supplies", shortName: "Pet Supplies", emoji: "🐾🥫", accent: "#7d6532", tint: "#f8f3e8" },
   { id: "other", name: "Other", shortName: "Other", emoji: "🛒➕", accent: "#596677", tint: "#f0f3f6" }
 ];
@@ -44,3 +44,9 @@ export const PRESET_ITEMS = Object.entries(ITEMS).flatMap(([categoryId, names], 
     sortOrder: categoryIndex * 1000 + itemIndex
   }))
 );
+
+export const MEAL_IDEAS = [
+  "Roast chicken", "Spaghetti bolognese", "Fish and chips", "Sausages and vegetables",
+  "Soup", "Sandwiches", "Stir-fry", "Tacos", "Curry", "Salad", "Baked dinner",
+  "Barbecue", "Takeaway night"
+];

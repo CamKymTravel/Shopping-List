@@ -1,35 +1,23 @@
-const CACHE_VERSION = "our-shopping-list-flat-shell-v21";
+const CACHE_VERSION = "our-shopping-list-recovery-v1";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=1.0.6",
+  "./styles.css",
   "./manifest.webmanifest",
-  "./app.js?v=1.0.6",
-  "./db.js?v=1.0.6",
-  "./data.js?v=1.0.6",
+  "./app.js",
+  "./db.js",
+  "./data.js",
   "./icon-192.png",
   "./icon-512.png",
   "./icon-maskable-512.png",
   "./apple-touch-icon.png",
   "./coles-logo.svg",
   "./woolworths-logo.svg",
-  "./aldi-logo.png",
-  "./category-fruit-veg.png?v=1.0.6",
-  "./category-meat-seafood.png?v=1.0.6",
-  "./category-dairy-eggs.png?v=1.0.6",
-  "./category-bakery.png?v=1.0.6",
-  "./category-pantry.png?v=1.0.6",
-  "./category-frozen.png?v=1.0.6",
-  "./category-drinks.png?v=1.0.6",
-  "./category-household.png?v=1.0.6",
-  "./category-toiletries.png?v=1.0.6",
-  "./category-pharmacy.png?v=1.0.6",
-  "./category-pet-supplies.png?v=1.0.6",
-  "./category-other.png?v=1.0.6"
+  "./aldi-logo.png"
 ];
 
 self.addEventListener("install", event => {
-  event.waitUntil(caches.open(CACHE_VERSION).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE_VERSION).then(cache => cache.addAll(APP_SHELL)));
 });
 
 
@@ -39,11 +27,8 @@ self.addEventListener("message", event => {
 
 self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE_VERSION).map(key => caches.delete(key))))
+    caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_VERSION).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
-      .then(() => self.clients.matchAll({ type: "window" }))
-      .then(clients => Promise.all(clients.map(client => client.navigate(client.url))))
   );
 });
 
@@ -52,28 +37,18 @@ self.addEventListener("fetch", event => {
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) return;
 
-  if (event.request.mode === "navigate") {
-    event.respondWith(
-      fetch(event.request, { cache: "no-store" })
-        .then(response => {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then(cache => cache.put("./index.html", copy));
-          return response;
-        })
-        .catch(() => caches.match("./index.html"))
-    );
-    return;
-  }
-
   event.respondWith(
-    fetch(event.request, { cache: "no-store" })
-      .then(response => {
-        if (response && response.status === 200) {
-          const copy = response.clone();
-          caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
-        }
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      return fetch(event.request).then(response => {
+        if (!response || response.status !== 200 || response.type === "opaque") return response;
+        const copy = response.clone();
+        caches.open(CACHE_VERSION).then(cache => cache.put(event.request, copy));
         return response;
-      })
-      .catch(() => caches.match(event.request))
+      }).catch(() => {
+        if (event.request.mode === "navigate") return caches.match("./index.html");
+        throw new Error("Offline resource unavailable");
+      });
+    })
   );
 });
