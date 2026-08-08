@@ -27,7 +27,7 @@ const personPhotoInput = document.querySelector("#person-photo-input");
 const receiveFileInput = document.querySelector("#receive-file-input");
 const restoreFileInput = document.querySelector("#restore-file-input");
 const updateRegion = document.querySelector("#update-region");
-const APP_BUILD = "0.9.5";
+const APP_BUILD = "0.9.6";
 
 const state = {
   route: "home",
@@ -389,7 +389,7 @@ async function renderAddItems() {
     main.innerHTML = `
       <section class="screen">
         <h1 class="section-heading">Add What We Need</h1>
-        <p class="section-subtitle">Choose a shopping category, or use your regular items.</p>
+        <p class="section-subtitle">Choose a shopping category.</p>
         <button class="regular-items-banner" data-route="regular"><span aria-hidden="true">${uiIcon("star")}</span><span><strong>Regular Items</strong><small>${favouriteIds.size} saved ${favouriteIds.size === 1 ? "item" : "items"}</small></span><span aria-hidden="true">›</span></button>
         <div class="category-grid">
           ${categories.map(category => {
