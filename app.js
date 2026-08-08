@@ -1,4 +1,4 @@
-import { CATEGORIES } from "./data.js?v=1.0.3";
+import { CATEGORIES } from "./data.js?v=1.0.4";
 import {
   openDatabase, getAll, getRecord, getItemLibrary, toggleLocalItem, createCustomItem,
   updateCustomItem, deleteCustomItem, getCombinedShoppingList, setItemStatus,
@@ -9,7 +9,7 @@ import {
   getPinState, setSettingsPin, clearSettingsPin, verifySettingsPin,
   getAccessibilitySettings, setAccessibilitySettings, consumeRestoreNotice,
   hidePresetItem, restorePresetItem, getFavouriteItemIds, toggleFavouriteItem, getFavouriteItems
-} from "./db.js?v=1.0.3";
+} from "./db.js?v=1.0.4";
 
 const main = document.querySelector("#main-content");
 const backButton = document.querySelector("#back-button");
@@ -27,7 +27,7 @@ const personPhotoInput = document.querySelector("#person-photo-input");
 const receiveFileInput = document.querySelector("#receive-file-input");
 const restoreFileInput = document.querySelector("#restore-file-input");
 const updateRegion = document.querySelector("#update-region");
-const APP_BUILD = "1.0.3";
+const APP_BUILD = "1.0.4";
 
 const state = {
   route: "home",
@@ -137,7 +137,7 @@ function uiIcon(name, className = "ui-icon") {
 
 function categoryIconMarkup(category, className = "category-art-image") {
   const safeId = String(category?.id || "other").replace(/[^a-z0-9-]/g, "");
-  return `<img class="${className} category-art-image" src="./category-${safeId}.png?v=1.0.3" alt="" loading="eager" decoding="async">`;
+  return `<img class="${className} category-art-image" src="./category-${safeId}.png?v=1.0.4" alt="" loading="eager" decoding="async">`;
 }
 
 function routeTo(route, options = {}) {

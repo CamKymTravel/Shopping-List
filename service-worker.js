@@ -1,12 +1,12 @@
-const CACHE_VERSION = "our-shopping-list-flat-shell-v22-final";
+const CACHE_VERSION = "our-shopping-list-flat-shell-v20";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=1.0.3",
+  "./styles.css?v=1.0.4",
   "./manifest.webmanifest",
-  "./app.js?v=1.0.3",
-  "./db.js?v=1.0.3",
-  "./data.js?v=1.0.3",
+  "./app.js?v=1.0.4",
+  "./db.js?v=1.0.4",
+  "./data.js?v=1.0.4",
   "./icon-192.png",
   "./icon-512.png",
   "./icon-maskable-512.png",
@@ -14,18 +14,18 @@ const APP_SHELL = [
   "./coles-logo.svg",
   "./woolworths-logo.svg",
   "./aldi-logo.png",
-  "./category-fruit-veg.png?v=1.0.3",
-  "./category-meat-seafood.png?v=1.0.3",
-  "./category-dairy-eggs.png?v=1.0.3",
-  "./category-bakery.png?v=1.0.3",
-  "./category-pantry.png?v=1.0.3",
-  "./category-frozen.png?v=1.0.3",
-  "./category-drinks.png?v=1.0.3",
-  "./category-household.png?v=1.0.3",
-  "./category-toiletries.png?v=1.0.3",
-  "./category-pharmacy.png?v=1.0.3",
-  "./category-pet-supplies.png?v=1.0.3",
-  "./category-other.png?v=1.0.3"
+  "./category-fruit-veg.png?v=1.0.4",
+  "./category-meat-seafood.png?v=1.0.4",
+  "./category-dairy-eggs.png?v=1.0.4",
+  "./category-bakery.png?v=1.0.4",
+  "./category-pantry.png?v=1.0.4",
+  "./category-frozen.png?v=1.0.4",
+  "./category-drinks.png?v=1.0.4",
+  "./category-household.png?v=1.0.4",
+  "./category-toiletries.png?v=1.0.4",
+  "./category-pharmacy.png?v=1.0.4",
+  "./category-pet-supplies.png?v=1.0.4",
+  "./category-other.png?v=1.0.4"
 ];
 
 self.addEventListener("install", event => {
