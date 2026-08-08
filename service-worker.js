@@ -1,4 +1,4 @@
-const CACHE_VERSION = "our-shopping-list-flat-shell-v17";
+const CACHE_VERSION = "our-shopping-list-flat-shell-v14";
 const APP_SHELL = [
   "./",
   "./index.html",

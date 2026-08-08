@@ -27,7 +27,7 @@ const personPhotoInput = document.querySelector("#person-photo-input");
 const receiveFileInput = document.querySelector("#receive-file-input");
 const restoreFileInput = document.querySelector("#restore-file-input");
 const updateRegion = document.querySelector("#update-region");
-const APP_BUILD = "0.9.3";
+const APP_BUILD = "0.9.4";
 
 const state = {
   route: "home",
@@ -122,14 +122,14 @@ function uiIcon(name, className = "ui-icon") {
     list: '<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
     people: '<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M17 11a4 4 0 0 0 0-8M23 21v-2a4 4 0 0 0-3-3.9"/>',
     meal: '<path d="M4 3v8M7 3v8M4 7h3M5.5 11v10M14 3v8c0 2 1.5 3 3 3s3-1 3-3V3M17 14v7"/>',
+    cart: '<circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 8H6"/>',
+    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4L16.5 3.5Z"/>',
     star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2 7.5 14 3 9.6l6.2-.9L12 3Z"/>',
     phone: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M10 18h4"/>',
     receive: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>',
     send: '<path d="m3 11 18-8-8 18-2-8-8-2Z"/><path d="m11 13 10-10"/>',
     help: '<circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-1 .9-1.7 1.3-1.7 3.2M12 18h.01"/>',
-    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1A1.7 1.7 0 0 0 4.6 15 1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z"/>',
-    cart: '<circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 8H6"/>',
-    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4L16.5 3.5Z"/>'
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1A1.7 1.7 0 0 0 4.6 15 1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z"/>'
   };
   const body = icons[name] || icons.list;
   return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
@@ -382,7 +382,7 @@ async function renderHome() {
 }
 
 async function renderAddItems() {
-  const [{ categories, items, hiddenItems, selectedIds, localContributions }, favouriteIds, favouriteItems] = await Promise.all([getItemLibrary(), getFavouriteItemIds(), getFavouriteItems()]);
+  const [{ categories, items, hiddenItems, selectedIds, localContributions }, favouriteIds] = await Promise.all([getItemLibrary(), getFavouriteItemIds()]);
   const selectedCategory = categories.find(category => category.id === state.selectedCategoryId);
   const localByItem = new Map((localContributions || []).map(row => [row.itemId, row]));
   if (!selectedCategory) {
@@ -390,15 +390,8 @@ async function renderAddItems() {
     main.innerHTML = `
       <section class="screen">
         <h1 class="section-heading">Add What We Need</h1>
-        <p class="section-subtitle">Regular Items are first. Categories are underneath.</p>
-        <section class="regular-feature-card" aria-labelledby="regular-feature-title">
-          <div class="regular-feature-heading"><span class="regular-feature-icon">${uiIcon("star")}</span><span><strong id="regular-feature-title">Regular Items</strong><small>Things you buy most often</small></span><button class="regular-view-all" data-route="regular">View All</button></div>
-          ${favouriteItems.length ? `<div class="regular-preview-list">${favouriteItems.slice(0, 6).map(item => {
-            const category = CATEGORIES.find(row => row.id === item.categoryId);
-            const selected = selectedIds.has(item.id);
-            return `<button class="regular-preview-item ${selected ? "is-selected" : ""}" data-toggle-item="${item.id}" aria-pressed="${selected}"><span class="regular-preview-art">${categoryIconMarkup(category)}</span><span><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(category?.shortName || "Other")}</small></span><span class="regular-preview-action">${selected ? "✓" : "+"}</span></button>`;
-          }).join("")}</div>` : `<button class="regular-empty-button" data-route="regular"><span>☆</span><strong>Choose your regular items</strong><small>Mark the things you buy most often.</small></button>`}
-        </section>
+        <p class="section-subtitle">Choose a shopping category, or use your regular items.</p>
+        <button class="regular-items-banner" data-route="regular"><span aria-hidden="true">${uiIcon("star")}</span><span><strong>Regular Items</strong><small>${favouriteIds.size} saved ${favouriteIds.size === 1 ? "item" : "items"}</small></span><span aria-hidden="true">›</span></button>
         <div class="category-grid">
           ${categories.map(category => {
             const count = [...items, ...hiddenItems].filter(item => item.categoryId === category.id && selectedIds.has(item.id)).length;
@@ -494,7 +487,7 @@ async function renderRegularItems() {
   const selectedIds = library.selectedIds;
   main.innerHTML = `
     <section class="screen quick-list-screen">
-      <div class="quick-list-hero regular-hero"><span aria-hidden="true">${uiIcon("star")}</span><div><h1>Regular Items</h1><p>Your quickest way to build the weekly list.</p></div></div>
+      <div class="quick-list-hero regular-hero"><span aria-hidden="true">★</span><div><h1>Regular Items</h1><p>Things you buy often. Tap Add to put one on this week’s list.</p></div></div>
       ${items.length ? `<div class="quick-item-list">${items.map(item => {
         const selected = selectedIds.has(item.id);
         const category = CATEGORIES.find(row => row.id === item.categoryId);
@@ -523,7 +516,7 @@ async function renderShopping() {
     <section class="screen ${state.shoppingMode ? "shopping-mode-screen" : ""}">
       <div class="shopping-mode-heading">
         <div class="summary-card compact-summary shopping-count-card"><h1>${active.length} ${active.length === 1 ? "item" : "items"} to buy</h1>${state.shoppingMode ? "<p>Shopping Mode is on</p>" : ""}</div>
-        ${active.length ? `<button class="button ${state.shoppingMode ? "button-secondary" : "button-primary"} shopping-mode-toggle" data-toggle-shopping-mode>${state.shoppingMode ? "← Exit Shopping Mode" : `${uiIcon("cart")} Start Shopping Mode`}</button>` : ""}
+        ${active.length ? `<button class="button ${state.shoppingMode ? "button-secondary" : "button-primary"} shopping-mode-toggle" data-toggle-shopping-mode>${state.shoppingMode ? "← Exit Shopping Mode" : "🛒 Start Shopping Mode"}</button>` : ""}
       </div>
       ${state.shoppingMode ? "" : `<button class="meal-shortcut-button" data-route="meals"><span aria-hidden="true">${uiIcon("meal")}</span><span><strong>View Meal Ideas</strong><small>${meals.length} shared ${meals.length === 1 ? "idea" : "ideas"}</small></span><span aria-hidden="true">›</span></button>`}
       ${active.length ? [...grouped.entries()].map(([categoryId, rows]) => {
@@ -813,7 +806,7 @@ async function renderSettings() {
         <button class="settings-navigation-card" data-route="people"><span class="settings-card-icon">${uiIcon("people")}</span><span><strong>My Profile and People</strong><small>${owner ? `My profile: ${escapeHTML(owner.name)} • ` : "No profile yet • "}${people.length} ${people.length === 1 ? "person" : "people"}</small></span><span>›</span></button>
         <button class="settings-navigation-card" data-route="custom-items"><span class="settings-card-icon">${uiIcon("edit")}</span><span><strong>Custom Items</strong><small>${customItems.length} saved custom ${customItems.length === 1 ? "item" : "items"}</small></span><span>›</span></button>
         <button class="settings-navigation-card" data-route="data-tools"><span class="settings-card-icon">${uiIcon("receive")}</span><span><strong>Backup and Restore</strong><small>Export one complete backup or replace from a saved backup.</small></span><span>›</span></button>
-        <button class="settings-navigation-card" data-route="accessibility"><span class="settings-card-icon">Aa</span><span><strong>Accessibility and PIN</strong><small>Large text is on • Settings PIN ${pinState.enabled ? "is on" : "is off"}</small></span><span>›</span></button>
+        <button class="settings-navigation-card" data-route="accessibility"><span class="settings-card-icon">👓</span><span><strong>Accessibility and PIN</strong><small>Large text is on • Settings PIN ${pinState.enabled ? "is on" : "is off"}</small></span><span>›</span></button>
         <button class="settings-navigation-card help-navigation-card" data-route="help"><span class="settings-card-icon">${uiIcon("help")}</span><span><strong>Simple Help</strong><small>How to add items, shop, send and receive a list.</small></span><span>›</span></button>
       </div>
       <div class="sticky-actions"><button class="button button-success button-wide" data-route="home">Return to Shopping List</button></div>
@@ -1261,7 +1254,7 @@ main.addEventListener("click", async event => {
     }
     if (button.hasAttribute("data-finish-shopping")) {
       const confirmed = await confirmAction({ title: "Finish Shopping?", message: "Got It items will be cleared. Couldn’t Get items will stay on the next shopping list. If somebody needs the results, send the list before finishing.", confirmText: "Finish Shopping", danger: false });
-      if (confirmed) { state.shoppingMode = false; await finishShopping(); await renderShopping(); showToast("Shopping finished. Unavailable items are still on your list.", 5200); }
+      if (confirmed) { state.shoppingMode = false; await finishShopping(); await renderShopping(); showToast("Shopping finished. Couldn’t Get items are still on your list.", 5200); }
       return;
     }
     if (button.hasAttribute("data-add-meal")) { const input = document.querySelector("#custom-meal"); const name = await createMealSuggestion(input.value); await renderMeals(); showToast(`${name} was saved as a meal idea.`); return; }
