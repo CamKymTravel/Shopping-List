@@ -1,4 +1,4 @@
-import { CATEGORIES } from "./data.js";
+import { CATEGORIES } from "./data.js?v=1.0.3";
 import {
   openDatabase, getAll, getRecord, getItemLibrary, toggleLocalItem, createCustomItem,
   updateCustomItem, deleteCustomItem, getCombinedShoppingList, setItemStatus,
@@ -9,7 +9,7 @@ import {
   getPinState, setSettingsPin, clearSettingsPin, verifySettingsPin,
   getAccessibilitySettings, setAccessibilitySettings, consumeRestoreNotice,
   hidePresetItem, restorePresetItem, getFavouriteItemIds, toggleFavouriteItem, getFavouriteItems
-} from "./db.js";
+} from "./db.js?v=1.0.3";
 
 const main = document.querySelector("#main-content");
 const backButton = document.querySelector("#back-button");
@@ -27,7 +27,7 @@ const personPhotoInput = document.querySelector("#person-photo-input");
 const receiveFileInput = document.querySelector("#receive-file-input");
 const restoreFileInput = document.querySelector("#restore-file-input");
 const updateRegion = document.querySelector("#update-region");
-const APP_BUILD = "0.9.6";
+const APP_BUILD = "1.0.3";
 
 const state = {
   route: "home",
@@ -135,8 +135,9 @@ function uiIcon(name, className = "ui-icon") {
   return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 }
 
-function categoryIconMarkup(category, className = "category-original-icon") {
-  return `<span class="${className}" aria-hidden="true">${escapeHTML(category?.emoji || "🛒")}</span>`;
+function categoryIconMarkup(category, className = "category-art-image") {
+  const safeId = String(category?.id || "other").replace(/[^a-z0-9-]/g, "");
+  return `<img class="${className} category-art-image" src="./category-${safeId}.png?v=1.0.3" alt="" loading="eager" decoding="async">`;
 }
 
 function routeTo(route, options = {}) {
@@ -502,14 +503,11 @@ async function renderRegularItems() {
 
 async function renderShopping() {
   const [combined, meals] = await Promise.all([getCombinedShoppingList(), getMealSuggestions()]);
-  const active = combined.filter(row => row.status === "active");
+  const active = combined
+    .filter(row => row.status === "active")
+    .sort((a, b) => a.item.name.localeCompare(b.item.name, undefined, { sensitivity: "base" }));
   const got = combined.filter(row => row.status === "got");
   const unavailable = combined.filter(row => row.status === "unavailable");
-  const grouped = new Map();
-  for (const row of active) {
-    if (!grouped.has(row.item.categoryId)) grouped.set(row.item.categoryId, []);
-    grouped.get(row.item.categoryId).push(row);
-  }
 
   main.innerHTML = `
     <section class="screen ${state.shoppingMode ? "shopping-mode-screen" : ""}">
@@ -518,14 +516,7 @@ async function renderShopping() {
         ${active.length ? `<button class="button ${state.shoppingMode ? "button-secondary" : "button-primary"} shopping-mode-toggle" data-toggle-shopping-mode>${state.shoppingMode ? "← Exit Shopping Mode" : "🛒 Start Shopping Mode"}</button>` : ""}
       </div>
       ${state.shoppingMode ? "" : `<button class="meal-shortcut-button" data-route="meals"><span aria-hidden="true">${uiIcon("meal")}</span><span><strong>View Meal Ideas</strong><small>${meals.length} shared ${meals.length === 1 ? "idea" : "ideas"}</small></span><span aria-hidden="true">›</span></button>`}
-      ${active.length ? [...grouped.entries()].map(([categoryId, rows]) => {
-        const category = rows[0].category || CATEGORIES.find(row => row.id === categoryId);
-        const sortedRows = [...rows].sort((a, b) => a.item.name.localeCompare(b.item.name, undefined, { sensitivity: "base" }));
-        return `<section class="panel shopping-category" style="${categoryStyle(category)}" aria-labelledby="shopping-category-${escapeHTML(category.id)}">
-          <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${categoryIconMarkup(category)}</span><strong id="shopping-category-${escapeHTML(category.id)}">${escapeHTML(category.name)}</strong><span class="panel-count">${rows.length}</span></div>
-          ${sortedRows.map(row => renderShoppingRow(row, category)).join("")}
-        </section>`;
-      }).join("") : `<div class="empty-card"><div class="empty-icon">🛒</div><h2>Your shopping list is empty</h2><p>Tap Add What We Need to choose some items.</p><button class="button button-primary" data-route="add">Add What We Need</button></div>`}
+      ${active.length ? `<section class="flat-shopping-list" aria-label="Items still needed">${active.map(row => renderShoppingRow(row, row.category || CATEGORIES.find(category => category.id === row.item.categoryId))).join("")}</section>` : `<div class="empty-card"><div class="empty-icon">🛒</div><h2>Your shopping list is empty</h2><p>Tap Add What We Need to choose some items.</p><button class="button button-primary" data-route="add">Add What We Need</button></div>`}
       ${state.shoppingMode ? `<div class="shopping-mode-footer"><button class="button button-secondary button-wide button-very-large" data-toggle-shopping-mode>← Exit Shopping Mode</button></div>` : `
         <details class="collapsible-summary got">
           <summary><span>✓</span><span>Got It</span><span class="status-count">${got.length}</span></summary>
@@ -581,18 +572,15 @@ async function renderStatusBreakdown() {
     </section>`;
 }
 
-function requesterProfilesMarkup(row) {
+function requesterInitialsMarkup(row) {
   const profiles = Array.isArray(row.requesterProfiles) && row.requesterProfiles.length
     ? row.requesterProfiles
-    : (row.requesters || []).map(name => ({ name, photo: "" }));
-  return `<div class="requester-strip" aria-label="Requested by ${escapeHTML(profiles.map(profile => profile.name).join(", "))}">
-    <span class="requester-avatar-group">${profiles.slice(0, 4).map(profile => {
-      const photo = safePhoto(profile.photo);
-      return photo
-        ? `<span class="requester-mini-avatar"><img src="${photo}" alt=""></span>`
-        : `<span class="requester-mini-avatar" aria-hidden="true">${escapeHTML(initials(profile.name))}</span>`;
-    }).join("")}</span>
-    <span class="requester-names">${escapeHTML(profiles.map(profile => profile.name).join(" • ") || "Me")}</span>
+    : (row.requesters || []).map(name => ({ name }));
+  const names = profiles.map(profile => String(profile?.name || "").trim()).filter(Boolean);
+  const visible = names.slice(0, 3);
+  return `<div class="requester-initials" aria-label="Requested by ${escapeHTML(names.join(", ") || "Me")}">
+    ${visible.map(name => `<span class="requester-initial" title="${escapeHTML(name)}">${escapeHTML(name.charAt(0).toUpperCase() || "M")}</span>`).join("")}
+    ${names.length > 3 ? `<span class="requester-initial requester-initial-more">+${names.length - 3}</span>` : ""}
   </div>`;
 }
 
@@ -601,14 +589,16 @@ function renderShoppingRow(row, category) {
     ? `<div class="shopping-store-detail">${row.requesterStores.map(entry => `${escapeHTML(entry.name)}: ${escapeHTML(storeDisplayName(entry.store))}`).join(" • ")}</div>`
     : "";
   return `<div class="shopping-row compact-shopping-row">
-    <button class="shopping-status-button got-status-button" style="--accent:${category.accent}" data-status-item="${row.itemId}" data-status="got" aria-label="Mark ${escapeHTML(row.item.name)} Got It"><span aria-hidden="true">✓</span><small>Got</small></button>
     <div class="item-copy shopping-item-copy">
       <div class="item-name">${escapeHTML(row.item.name)}</div>
-      ${requesterProfilesMarkup(row)}
-      <div class="shopping-readonly-meta">${row.quantity > 1 ? `<span class="quantity-badge">×${row.quantity}</span>` : ""}${shoppingStoreMarkup(row)}</div>
+      <div class="shopping-readonly-meta">${shoppingStoreMarkup(row)}${row.quantity > 1 ? `<span class="quantity-badge">×${row.quantity}</span>` : ""}</div>
       ${differentStores}
     </div>
-    <button class="shopping-status-button missed-status-button" data-status-item="${row.itemId}" data-status="unavailable" aria-label="Mark ${escapeHTML(row.item.name)} Couldn’t Get"><span aria-hidden="true">×</span><small>Couldn't<br>Get</small></button>
+    ${requesterInitialsMarkup(row)}
+    <div class="shopping-status-stack">
+      <button class="shopping-status-button got-status-button" style="--accent:${category?.accent || "#18873a"}" data-status-item="${row.itemId}" data-status="got" aria-label="Mark ${escapeHTML(row.item.name)} Got It"><span aria-hidden="true">✓</span><strong>Got It</strong></button>
+      <button class="shopping-status-button missed-status-button" data-status-item="${row.itemId}" data-status="unavailable" aria-label="Mark ${escapeHTML(row.item.name)} Couldn’t Get"><span aria-hidden="true">×</span><strong>Couldn’t Get</strong></button>
+    </div>
   </div>`;
 }
 
@@ -650,10 +640,10 @@ async function renderTransfer() {
   const owner = await getOwner();
   main.innerHTML =     `<section class="screen transfer-screen">
       <h1 class="section-heading">Send or Receive a List</h1>
-      <p class="section-subtitle">Choose one large button. The easiest iPad-to-iPhone method for Mum is first.</p>
+      <p class="section-subtitle">Choose one large button. The easiest iPad-to-iPhone method is first.</p>
       <div class="transfer-choice-grid transfer-simple-grid">
         <button class="transfer-choice self-copy-choice" data-copy-self ${owner ? "" : "disabled"}><span aria-hidden="true">${uiIcon("phone")}</span><strong>Send to My Phone</strong><small>On your iPad, send your list. Then open this app on your iPhone and tap Receive My List.</small></button>
-        <button class="transfer-choice send-choice" data-route="send"><span aria-hidden="true">${uiIcon("send")}</span><strong>Send to Someone</strong><small>Prepare a small Shopping List file or message to send to Cameron, Kim or Leslie.</small></button>
+        <button class="transfer-choice send-choice" data-route="send"><span aria-hidden="true">${uiIcon("send")}</span><strong>Send to Someone</strong><small>Prepare a small Shopping List file or message to send to a family member or friend.</small></button>
         <button class="transfer-choice receive-choice" data-route="receive"><span aria-hidden="true">${uiIcon("receive")}</span><strong>Receive My List</strong><small>Use this after Send to My Phone, or after someone sends you a small Shopping List file.</small></button>
       </div>
       ${owner ? "" : `<div class="notice-card"><strong>Set up My Profile first</strong><span>Your name is needed before this device can send or copy a list.</span><button class="button button-primary button-wide" data-route="people">Set Up My Profile</button></div>`}
@@ -690,7 +680,7 @@ async function renderSend() {
           </div>
         </article>`).join("") : `<div class="empty-card"><h2>No people added yet</h2><p>Add yourself and anyone you share lists with.</p><button class="button button-primary" data-route="people">Add People</button></div>`}
       </div>
-      <div class="notice-card"><strong>Simplest plan</strong><span>For Mum: use Send to My Phone between her iPad and iPhone. For you and Kim: use Send Small List File first, and use text message only if needed.</span></div>
+      <div class="notice-card"><strong>Simplest plan</strong><span>For your own iPad and iPhone, use Send to My Phone. For another person, use Send Small List File first, and use text message only if needed.</span></div>
     </section>`;
 }
 
@@ -1456,7 +1446,7 @@ async function registerServiceWorker() {
       state.refreshingForUpdate = false;
       location.reload();
     });
-    const registration = await navigator.serviceWorker.register("./service-worker.js", { scope: "./" });
+    const registration = await navigator.serviceWorker.register("./service-worker.js", { scope: "./", updateViaCache: "none" });
     if (registration.waiting && navigator.serviceWorker.controller) showUpdatePrompt(registration);
     registration.addEventListener("updatefound", () => {
       const worker = registration.installing;

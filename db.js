@@ -1,4 +1,4 @@
-import { CATEGORIES, PRESET_ITEMS } from "./data.js";
+import { CATEGORIES, PRESET_ITEMS } from "./data.js?v=1.0.3";
 
 const DB_NAME = "our-shopping-list";
 const DB_VERSION = 6;
@@ -320,26 +320,6 @@ export async function getFavouriteItems() {
   return items
     .filter(item => ids.has(item.id) && !item.imported && (item.isCustom || !hiddenIds.has(item.id)))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-}
-
-export async function getRecentlyBought(limit = 30) {
-  const [items, categories, contributions, hiddenIds] = await Promise.all([getAll("items"), getAll("categories"), getAll("contributions"), getHiddenPresetItemIds()]);
-  const itemMap = new Map(items.map(item => [item.id, item]));
-  const categoryMap = new Map(categories.map(category => [category.id, category]));
-  const seen = new Set();
-  const result = [];
-  const rows = contributions
-    .filter(row => row.status === "cleared" && row.clearedAt && itemMap.has(row.itemId))
-    .sort((a, b) => String(b.clearedAt).localeCompare(String(a.clearedAt)));
-  for (const row of rows) {
-    if (seen.has(row.itemId)) continue;
-    const item = itemMap.get(row.itemId);
-    if (!item || item.imported || (!item.isCustom && hiddenIds.has(item.id))) continue;
-    seen.add(row.itemId);
-    result.push({ item, category: categoryMap.get(item.categoryId), lastBoughtAt: row.clearedAt });
-    if (result.length >= Math.max(1, Math.min(100, Number(limit) || 30))) break;
-  }
-  return result;
 }
 
 export async function addItemAgain(itemId) {

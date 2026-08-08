@@ -44,9 +44,3 @@ export const PRESET_ITEMS = Object.entries(ITEMS).flatMap(([categoryId, names], 
     sortOrder: categoryIndex * 1000 + itemIndex
   }))
 );
-
-export const MEAL_IDEAS = [
-  "Roast chicken", "Spaghetti bolognese", "Fish and chips", "Sausages and vegetables",
-  "Soup", "Sandwiches", "Stir-fry", "Tacos", "Curry", "Salad", "Baked dinner",
-  "Barbecue", "Takeaway night"
-];

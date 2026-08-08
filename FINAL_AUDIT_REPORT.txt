@@ -1,0 +1,78 @@
+Shopping List App — Final Forensic Audit
+Build 1.0.3
+
+Result: 73/73 automated integrity checks passed.
+
+PASS — required file index.html
+PASS — required file app.js
+PASS — required file db.js
+PASS — required file data.js
+PASS — required file styles.css
+PASS — required file service-worker.js
+PASS — required file manifest.webmanifest
+PASS — required file apple-touch-icon.png
+PASS — required file icon-192.png
+PASS — required file icon-512.png
+PASS — required file icon-maskable-512.png
+PASS — required file coles-logo.svg
+PASS — required file woolworths-logo.svg
+PASS — required file aldi-logo.png
+PASS — category art fruit-veg exists
+PASS — category art fruit-veg 800x360 ((800, 360))
+PASS — category art meat-seafood exists
+PASS — category art meat-seafood 800x360 ((800, 360))
+PASS — category art dairy-eggs exists
+PASS — category art dairy-eggs 800x360 ((800, 360))
+PASS — category art bakery exists
+PASS — category art bakery 800x360 ((800, 360))
+PASS — category art pantry exists
+PASS — category art pantry 800x360 ((800, 360))
+PASS — category art frozen exists
+PASS — category art frozen 800x360 ((800, 360))
+PASS — category art drinks exists
+PASS — category art drinks 800x360 ((800, 360))
+PASS — category art household exists
+PASS — category art household 800x360 ((800, 360))
+PASS — category art toiletries exists
+PASS — category art toiletries 800x360 ((800, 360))
+PASS — category art pharmacy exists
+PASS — category art pharmacy 800x360 ((800, 360))
+PASS — category art pet-supplies exists
+PASS — category art pet-supplies 800x360 ((800, 360))
+PASS — category art other exists
+PASS — category art other 800x360 ((800, 360))
+PASS — shopping list is continuous flat list
+PASS — shopping screen has no category section headings
+PASS — requester initials present
+PASS — Got and Couldnt actions side by side
+PASS — item name large
+PASS — Got button exists
+PASS — Couldnt Get button exists
+PASS — category picker two-column
+PASS — regular items feature retained
+PASS — recently bought absent from UI
+PASS — meal ideas retained
+PASS — send/receive retained
+PASS — backup restore retained
+PASS — settings PIN retained
+PASS — service worker cache final
+PASS — cache-busted styles.css?v=1.0.3
+PASS — cache-busted app.js?v=1.0.3
+PASS — cache-busted db.js?v=1.0.3
+PASS — cache-busted data.js?v=1.0.3
+PASS — service worker caches category fruit-veg
+PASS — service worker caches category meat-seafood
+PASS — service worker caches category dairy-eggs
+PASS — service worker caches category bakery
+PASS — service worker caches category pantry
+PASS — service worker caches category frozen
+PASS — service worker caches category drinks
+PASS — service worker caches category household
+PASS — service worker caches category toiletries
+PASS — service worker caches category pharmacy
+PASS — service worker caches category pet-supplies
+PASS — service worker caches category other
+PASS — all build assets flat root
+PASS — no external HTTP runtime dependencies
+PASS — manifest standalone
+PASS — manifest has icons

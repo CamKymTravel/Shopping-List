@@ -1414,7 +1414,7 @@ body {
   }
 }
 
-/* Build 0.8.0 — Regular Items, Recently Bought, Shopping Mode, Help and requester identity */
+/* Regular Items, simple shopping mode, Help and requester identity */
 .quick-pick-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1696,13 +1696,6 @@ body {
   place-items: center;
   min-height: 82px;
 }
-.category-vector-icon {
-  width: clamp(74px, 22vw, 102px);
-  height: clamp(74px, 22vw, 102px);
-  display: block;
-  overflow: visible;
-  filter: drop-shadow(0 6px 6px rgba(31, 39, 45, .13));
-}
 .category-card .category-name {
   letter-spacing: -.02em;
 }
@@ -1777,25 +1770,253 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+
+
+
+/* Final candidate — approved shopping layout: Got left, details centre, Couldn’t Get right */
+/* Build 1.0.0 — approved rich category artwork, original layout retained */
+.category-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+.category-card {
+  min-height: 172px !important;
+  padding: 11px !important;
+  border: 2px solid var(--accent, #d8e7d0) !important;
+  border-radius: 22px !important;
+  background: linear-gradient(145deg, var(--tint, #f0f8ed), rgba(255,255,255,.94)) !important;
+  color: var(--ink) !important;
+  display: grid !important;
+  grid-template-rows: minmax(104px, 1fr) auto !important;
+  text-align: left !important;
+  box-shadow: 0 8px 18px rgba(55,43,20,.09) !important;
+  overflow: hidden !important;
+}
+.category-card .category-emoji {
+  min-height: 104px !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 2px !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  filter: none !important;
+  overflow: visible !important;
+}
+.category-art-image {
+  display: block !important;
+  width: 100% !important;
+  max-width: 190px !important;
+  height: 104px !important;
+  margin: 0 auto !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  border-radius: 13px !important;
+  filter: drop-shadow(0 4px 5px rgba(40,44,52,.10)) !important;
+}
+.category-card .category-name-row {
+  display: flex !important;
+  align-items: flex-end !important;
+  gap: 8px !important;
+  margin-top: 3px !important;
+}
+.category-card .category-name {
+  flex: 1 !important;
+  font-size: clamp(1.05rem, 4.8vw, 1.45rem) !important;
+  line-height: 1.02 !important;
+  font-weight: 950 !important;
+  letter-spacing: -.02em !important;
+}
+.category-count {
+  min-width: 44px !important;
+  height: 44px !important;
+  border-radius: 50% !important;
+  display: grid !important;
+  place-items: center !important;
+  background: var(--accent, var(--green)) !important;
+  color: white !important;
+  font-size: 1.15rem !important;
+  box-shadow: 0 3px 8px rgba(0,0,0,.10) !important;
+}
+.panel-emoji .category-art-image {
+  width: 78px !important;
+  max-width: 78px !important;
+  height: 50px !important;
+  margin: 0 !important;
+  border-radius: 10px !important;
+}
+.quick-item-icon .category-art-image,
+.custom-category-icon .category-art-image {
+  width: 56px !important;
+  max-width: 56px !important;
+  height: 44px !important;
+  margin: 0 !important;
+  border-radius: 9px !important;
+}
 @media (min-width: 700px) {
-  .category-vector-icon {
-    width: 108px;
-    height: 108px;
-  }
+  .category-grid { gap: 16px !important; }
+  .category-card { min-height: 225px !important; padding: 14px !important; grid-template-rows: minmax(146px, 1fr) auto !important; }
+  .category-card .category-emoji { min-height: 146px !important; }
+  .category-art-image { max-width: 315px !important; height: 148px !important; }
+}
+@media (max-width: 380px) {
+  .category-card { min-height: 160px !important; padding: 9px !important; }
+  .category-art-image { height: 94px !important; }
+  .category-card .category-name { font-size: 1rem !important; }
 }
 
+
+
+/* Build 1.0.2 final shopping-row layout: item left, requester initial centre, actions side-by-side right. */
+.compact-shopping-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(158px, 44%);
+  gap: 10px;
+  align-items: center;
+  min-height: 112px;
+  padding: 10px 10px 10px 14px;
+}
+.shopping-item-copy {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 6px;
+}
+.shopping-item-copy .item-name {
+  font-size: clamp(1.45rem, 5.7vw, 1.9rem);
+  line-height: 1.02;
+  font-weight: 950;
+  letter-spacing: -.025em;
+}
+.shopping-readonly-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 0;
+}
+.requester-initials {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  min-width: 44px;
+}
+.requester-initial {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 2px solid #ded5ef;
+  background: linear-gradient(145deg, #f5f1ff, #eee8fb);
+  color: #5332a5;
+  font-size: 1.15rem;
+  line-height: 1;
+  font-weight: 950;
+  box-shadow: 0 3px 8px rgba(60, 40, 110, .08);
+}
+.requester-initial-more { font-size: .72rem; }
+.shopping-status-stack {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  width: 100%;
+}
+.shopping-status-stack .shopping-status-button {
+  width: 100%;
+  height: auto;
+  min-height: 68px;
+  border-radius: 15px;
+  padding: 7px 5px;
+  display: grid;
+  grid-template-rows: auto auto;
+  place-items: center;
+  align-content: center;
+  gap: 2px;
+  font-weight: 950;
+  line-height: 1;
+}
+.shopping-status-stack .shopping-status-button > span {
+  font-size: 1.45rem;
+  line-height: .95;
+}
+.shopping-status-stack .shopping-status-button strong {
+  font-size: .76rem;
+  line-height: 1.02;
+  text-align: center;
+}
+.shopping-status-stack .got-status-button {
+  border: 3px solid var(--green);
+  background: #f3fff3;
+  color: var(--green-dark);
+}
+.shopping-status-stack .missed-status-button {
+  border: 3px solid #e76a5d;
+  background: #fff7f5;
+  color: #b1261b;
+}
+@media (min-width: 700px) {
+  .compact-shopping-row {
+    grid-template-columns: minmax(0, 1fr) auto 280px;
+    min-height: 122px;
+    gap: 16px;
+    padding: 12px 16px;
+  }
+  .requester-initial { width: 50px; height: 50px; font-size: 1.25rem; }
+  .shopping-status-stack .shopping-status-button { min-height: 76px; }
+  .shopping-status-stack .shopping-status-button strong { font-size: .92rem; }
+}
 @media (max-width: 430px) {
-  .category-vector-icon {
-    width: 76px;
-    height: 76px;
+  .compact-shopping-row {
+    grid-template-columns: minmax(0, 1fr) 40px minmax(146px, 44%);
+    gap: 7px;
+    min-height: 106px;
+    padding: 9px 7px 9px 10px;
   }
-  .category-card .category-emoji { min-height: 72px; }
+  .shopping-item-copy .item-name { font-size: 1.32rem; }
+  .requester-initial { width: 38px; height: 38px; font-size: 1rem; }
+  .shopping-status-stack { gap: 5px; }
+  .shopping-status-stack .shopping-status-button { min-height: 64px; padding: 6px 3px; }
+  .shopping-status-stack .shopping-status-button > span { font-size: 1.25rem; }
+  .shopping-status-stack .shopping-status-button strong { font-size: .67rem; }
+}
+@media (max-width: 380px) {
+  .compact-shopping-row {
+    grid-template-columns: minmax(0, 1fr) 36px minmax(136px, 45%);
+    gap: 5px;
+    padding-inline: 7px;
+  }
+  .shopping-item-copy .item-name { font-size: 1.2rem; }
+  .requester-initial { width: 34px; height: 34px; font-size: .92rem; }
+  .shopping-status-stack .shopping-status-button { min-height: 60px; }
+  .shopping-status-stack .shopping-status-button strong { font-size: .6rem; }
 }
 
-
-/* Build 0.9.5 — original category icon family restored; graphics-only correction */
-.category-original-icon{display:inline-flex;align-items:center;justify-content:center;min-width:1em;font-family:-apple-system,BlinkMacSystemFont,"Apple Color Emoji","Segoe UI Emoji",sans-serif;font-size:1em;line-height:1;letter-spacing:-.08em;filter:drop-shadow(0 3px 4px rgba(40,44,52,.12));transform:translateZ(0)}
-.category-card .category-original-icon{font-size:clamp(2.9rem,13vw,4.8rem);min-height:1.1em}
-.panel-emoji .category-original-icon,.custom-category-icon .category-original-icon{font-size:1.55em}
-.category-card{overflow:hidden}
-.category-card .category-emoji{background:rgba(255,255,255,.46);border:1px solid rgba(255,255,255,.75);box-shadow:0 7px 16px rgba(40,44,52,.08),inset 0 1px 0 rgba(255,255,255,.92)}
+/* Build 1.0.3 — final Mum-friendly Shopping List: one continuous list, no category sections. */
+.flat-shopping-list {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #e7ddcb;
+  border-radius: 22px;
+  background: rgba(255,255,255,.9);
+  box-shadow: 0 8px 22px rgba(65, 49, 24, .08);
+}
+.flat-shopping-list .compact-shopping-row {
+  margin: 0;
+  border: 1px solid #e9e6df;
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(45, 54, 68, .045);
+}
+.flat-shopping-list .compact-shopping-row + .compact-shopping-row {
+  border-top: 1px solid #e9e6df;
+}
+@media (max-width: 430px) {
+  .flat-shopping-list { gap: 7px; padding: 7px; }
+}
