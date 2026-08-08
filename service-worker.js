@@ -1,4 +1,4 @@
-const CACHE_VERSION = "our-shopping-list-recovery-v1";
+const CACHE_VERSION = "our-shopping-list-themes-v1";
 const APP_SHELL = [
   "./",
   "./index.html",

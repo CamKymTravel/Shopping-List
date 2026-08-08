@@ -1678,3 +1678,189 @@ body {
 }
 
 /* Build 1.0.7 Recovery: restored last known-good pre-redesign visual structure. */
+
+/* Build 1.1.0 — appearance-only themes. Layout and workflows intentionally unchanged. */
+.theme-grid { display: grid; gap: 14px; }
+.theme-card {
+  width: 100%;
+  min-height: 150px;
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border: 2px solid var(--line);
+  border-radius: 22px;
+  background: var(--white);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: var(--shadow);
+}
+.theme-card.is-selected { border-color: var(--blue); box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue) 18%, transparent), var(--shadow); }
+.theme-card-top { display: flex; align-items: center; gap: 10px; }
+.theme-card-top strong { flex: 1; font-size: 1.3rem; }
+.theme-selected-badge { padding: 5px 10px; border-radius: 999px; background: var(--blue); color: white; font-size: .72rem; font-weight: 950; }
+.theme-preview { height: 42px; display: grid; grid-template-columns: repeat(4,1fr); overflow: hidden; border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); border-radius: 14px; }
+.theme-preview span { display: block; }
+.theme-card small { color: var(--muted); font-size: .88rem; line-height: 1.35; font-weight: 800; }
+.theme-device-note { margin: 0; padding: 14px 16px; border-radius: 16px; background: color-mix(in srgb, var(--blue) 7%, var(--white)); color: var(--muted); font-size: .88rem; line-height: 1.4; }
+.theme-notice { background: color-mix(in srgb, var(--green) 8%, var(--white)); }
+
+/* Modern Clean */
+html[data-theme="modern"] {
+  --cream: #f5f7fb;
+  --cream-deep: #e9eef7;
+  --ink: #122033;
+  --muted: #617086;
+  --line: #d8e0eb;
+  --white: #ffffff;
+  --blue: #2457c5;
+  --blue-dark: #183f98;
+  --green: #159767;
+  --green-dark: #0f6d4b;
+  --purple: #6a55bb;
+  --orange: #d97728;
+  --red: #cf3f45;
+  --shadow: 0 8px 22px rgba(38, 55, 80, .09);
+}
+html[data-theme="modern"] body {
+  background: linear-gradient(180deg, #f9fbfe 0%, #f3f6fb 100%);
+}
+html[data-theme="modern"] .summary-card,
+html[data-theme="modern"] .panel,
+html[data-theme="modern"] .settings-card,
+html[data-theme="modern"] .settings-navigation-card,
+html[data-theme="modern"] .person-card,
+html[data-theme="modern"] .empty-card,
+html[data-theme="modern"] .receive-hero,
+html[data-theme="modern"] .receive-preview-card {
+  border-color: #dbe3ed;
+  background: rgba(255,255,255,.96);
+}
+html[data-theme="modern"] .home-action { box-shadow: 0 7px 18px rgba(37, 64, 103, .14); }
+html[data-theme="modern"] .action-blue { background: linear-gradient(135deg,#3471df,#2457c5); }
+html[data-theme="modern"] .action-purple { background: linear-gradient(135deg,#8068cc,#624bb2); }
+html[data-theme="modern"] .action-green { background: linear-gradient(135deg,#2eb87f,#159767); }
+html[data-theme="modern"] .action-orange { background: linear-gradient(135deg,#ed9b53,#d97728); }
+
+/* Dark Premium */
+html[data-theme="dark"] {
+  --cream: #121722;
+  --cream-deep: #0d111a;
+  --ink: #f4f7fb;
+  --muted: #aeb9c8;
+  --line: #354052;
+  --white: #1b2230;
+  --blue: #4f91f3;
+  --blue-dark: #8bb9ff;
+  --green: #38b86a;
+  --green-dark: #78d897;
+  --purple: #9a79df;
+  --orange: #ef9b46;
+  --red: #ef646b;
+  --shadow: 0 10px 28px rgba(0,0,0,.30);
+}
+html[data-theme="dark"] body {
+  background: radial-gradient(circle at 50% -10%, #25314a 0%, #121722 42%, #0d111a 100%);
+  color: var(--ink);
+}
+html[data-theme="dark"] .app-shell { color: var(--ink); }
+html[data-theme="dark"] .icon-button,
+html[data-theme="dark"] .header-back,
+html[data-theme="dark"] .settings-card,
+html[data-theme="dark"] .settings-navigation-card,
+html[data-theme="dark"] .person-card,
+html[data-theme="dark"] .empty-card,
+html[data-theme="dark"] .receive-hero,
+html[data-theme="dark"] .receive-preview-card,
+html[data-theme="dark"] .locked-card,
+html[data-theme="dark"] .panel,
+html[data-theme="dark"] .theme-card,
+html[data-theme="dark"] .transfer-more-options,
+html[data-theme="dark"] .transfer-other-card,
+html[data-theme="dark"] .custom-management-row,
+html[data-theme="dark"] .dialog-card {
+  background: #1b2230;
+  border-color: #364258;
+  color: #f4f7fb;
+}
+html[data-theme="dark"] .summary-card { background: linear-gradient(145deg,#242c3b,#1b2230); border-color:#48576e; }
+html[data-theme="dark"] .panel-header { background: color-mix(in srgb, var(--tint, #243044) 42%, #1b2230); color:#f4f7fb; }
+html[data-theme="dark"] .panel-body { background:#1b2230; }
+html[data-theme="dark"] .search-field,
+html[data-theme="dark"] .form-card input[type="text"],
+html[data-theme="dark"] .form-card input[type="tel"],
+html[data-theme="dark"] .form-card select,
+html[data-theme="dark"] .pin-input,
+html[data-theme="dark"] .store-picker select,
+html[data-theme="dark"] .transfer-other-body textarea {
+  background:#111722;
+  color:#f4f7fb;
+  border-color:#51607a;
+}
+html[data-theme="dark"] .selectable-item-row,
+html[data-theme="dark"] .saved-meal-row,
+html[data-theme="dark"] .status-list-row { background:#202938; border-color:#344054; }
+html[data-theme="dark"] .item-meta,
+html[data-theme="dark"] .settings-card p,
+html[data-theme="dark"] .settings-navigation-card small,
+html[data-theme="dark"] .person-card-copy small,
+html[data-theme="dark"] .theme-card small { color:#aeb9c8; }
+html[data-theme="dark"] .button-secondary { background:#222b3a; color:#f4f7fb; border-color:#46536a; }
+html[data-theme="dark"] .text-button { color:#8bb9ff; }
+html[data-theme="dark"] .action-blue { background: linear-gradient(135deg,#367de3,#1f56a7); }
+html[data-theme="dark"] .action-purple { background: linear-gradient(135deg,#8867cf,#5f409d); }
+html[data-theme="dark"] .action-green { background: linear-gradient(135deg,#34a966,#1d7146); }
+html[data-theme="dark"] .action-orange { background: linear-gradient(135deg,#e08b3c,#a95820); }
+html[data-theme="dark"] .brand-copy small,
+html[data-theme="dark"] .section-subtitle,
+html[data-theme="dark"] .requesters { color:#b79cf0; }
+html[data-theme="dark"] .theme-device-note { background:#202938; }
+
+/* Warm Premium */
+html[data-theme="warm"] {
+  --cream: #fff5e8;
+  --cream-deep: #f8e5c9;
+  --ink: #2b211b;
+  --muted: #78665a;
+  --line: #e7cfb4;
+  --white: #fffdf9;
+  --blue: #4b6f94;
+  --blue-dark: #355471;
+  --green: #668a4a;
+  --green-dark: #4e6d37;
+  --purple: #8e6c91;
+  --orange: #b66a17;
+  --red: #b64f46;
+  --shadow: 0 9px 24px rgba(112, 73, 34, .13);
+}
+html[data-theme="warm"] body {
+  background: radial-gradient(circle at 15% 0%, #fffdf8, transparent 42%), linear-gradient(180deg,#fff7ec,#f9ead7);
+}
+html[data-theme="warm"] .summary-card { background: linear-gradient(145deg,#fffdf8,#f9e7c9); border-color:#e2c29a; }
+html[data-theme="warm"] .settings-card,
+html[data-theme="warm"] .settings-navigation-card,
+html[data-theme="warm"] .person-card,
+html[data-theme="warm"] .empty-card,
+html[data-theme="warm"] .panel { border-color:#e7cfb4; background:#fffdf9; }
+html[data-theme="warm"] .action-blue { background: linear-gradient(135deg,#5f82a5,#426682); }
+html[data-theme="warm"] .action-purple { background: linear-gradient(135deg,#a07fa2,#805d82); }
+html[data-theme="warm"] .action-green { background: linear-gradient(135deg,#7b9b5f,#5f7d47); }
+html[data-theme="warm"] .action-orange { background: linear-gradient(135deg,#cf8540,#aa5e1c); }
+html[data-theme="warm"] .brand-copy small,
+html[data-theme="warm"] .section-subtitle { color:#855b47; }
+
+@media (min-width:700px) {
+  .theme-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+
+/* Dark theme readability exceptions for deliberately light semantic cards. */
+html[data-theme="dark"] .category-card,
+html[data-theme="dark"] .summary-stat,
+html[data-theme="dark"] .store-brand-badge,
+html[data-theme="dark"] .quantity-control,
+html[data-theme="dark"] .got-button,
+html[data-theme="dark"] .item-select {
+  color: #122033;
+}
+html[data-theme="dark"] .summary-stat .summary-label { color:#122033; }
+html[data-theme="dark"] .summary-stat small { color:#5e6a79; }
+html[data-theme="dark"] .category-card .category-name { color:#122033; }

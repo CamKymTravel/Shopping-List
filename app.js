@@ -9,6 +9,7 @@ import {
   getPinState, setSettingsPin, clearSettingsPin, verifySettingsPin,
   getAccessibilitySettings, setAccessibilitySettings, consumeRestoreNotice,
   hidePresetItem, restorePresetItem, getFavouriteItemIds, toggleFavouriteItem, getFavouriteItems,
+  getSetting, setSetting,
 } from "./db.js";
 
 const main = document.querySelector("#main-content");
@@ -27,7 +28,7 @@ const personPhotoInput = document.querySelector("#person-photo-input");
 const receiveFileInput = document.querySelector("#receive-file-input");
 const restoreFileInput = document.querySelector("#restore-file-input");
 const updateRegion = document.querySelector("#update-region");
-const APP_BUILD = "1.0.7 Recovery";
+const APP_BUILD = "1.1.0 Themes";
 
 const state = {
   route: "home",
@@ -45,7 +46,7 @@ const state = {
   refreshingForUpdate: false
 };
 
-const SETTINGS_ROUTES = new Set(["settings", "people", "custom-items", "data-tools", "accessibility", "help"]);
+const SETTINGS_ROUTES = new Set(["settings", "people", "custom-items", "data-tools", "accessibility", "themes", "help"]);
 const ROUTES = {
   home: { title: "Our Shopping List", subtitle: "Easy to read. Easy to use.", render: renderHome },
   add: { title: "My Weekly List", subtitle: "Tap items we need", render: renderAddItems },
@@ -64,6 +65,7 @@ const ROUTES = {
   "custom-items": { title: "Custom Items", subtitle: "Change your saved items", render: renderCustomItems },
   "data-tools": { title: "Backup and Restore", subtitle: "Protect your local data", render: renderDataTools },
   accessibility: { title: "Accessibility", subtitle: "Keep the app easy to read", render: renderAccessibility },
+  themes: { title: "App Theme", subtitle: "Change the look, not how it works", render: renderThemes },
   help: { title: "Help", subtitle: "Simple step-by-step instructions", render: renderHelp }
 };
 
@@ -133,6 +135,24 @@ function routeTo(route, options = {}) {
   }
   history.replaceState({ route }, "", `#${route}`);
   renderRoute();
+}
+
+const APP_THEMES = [
+  { id: "easy", name: "Easy & Clear", description: "The default Mum-friendly theme. Bright, colourful and very easy to read.", swatches: ["#fffaf0", "#0b61c9", "#6d3db5", "#18873a"] },
+  { id: "modern", name: "Modern Clean", description: "Crisp white surfaces, cool blue accents and a cleaner contemporary finish.", swatches: ["#f5f7fb", "#2457c5", "#6c7a91", "#17a673"] },
+  { id: "dark", name: "Dark Premium", description: "Deep charcoal background with bright cards and rich premium accents.", swatches: ["#121722", "#2b77e5", "#8d67d6", "#31a95a"] },
+  { id: "warm", name: "Warm Premium", description: "Soft cream, warm gold and terracotta accents with the same simple layout.", swatches: ["#fff5e8", "#b66a17", "#9c5b4d", "#668a4a"] },
+];
+
+function normaliseTheme(theme) {
+  return APP_THEMES.some(item => item.id === theme) ? theme : "easy";
+}
+
+async function applyTheme(themeValue = null) {
+  const theme = normaliseTheme(themeValue ?? await getSetting("appTheme", "easy"));
+  document.documentElement.dataset.theme = theme;
+  document.documentElement.style.colorScheme = theme === "dark" ? "dark" : "light";
+  return theme;
 }
 
 async function applyAccessibility() {
@@ -783,6 +803,7 @@ async function renderSettings() {
         <button class="settings-navigation-card" data-route="custom-items"><span class="settings-card-icon">📝</span><span><strong>Custom Items</strong><small>${customItems.length} saved custom ${customItems.length === 1 ? "item" : "items"}</small></span><span>›</span></button>
         <button class="settings-navigation-card" data-route="data-tools"><span class="settings-card-icon">💾</span><span><strong>Backup and Restore</strong><small>Export one complete backup or replace from a saved backup.</small></span><span>›</span></button>
         <button class="settings-navigation-card" data-route="accessibility"><span class="settings-card-icon">👓</span><span><strong>Accessibility and PIN</strong><small>Large text is on • Settings PIN ${pinState.enabled ? "is on" : "is off"}</small></span><span>›</span></button>
+        <button class="settings-navigation-card theme-navigation-card" data-route="themes"><span class="settings-card-icon">🎨</span><span><strong>App Theme</strong><small>Choose Easy & Clear, Modern Clean, Dark Premium or Warm Premium.</small></span><span>›</span></button>
         <button class="settings-navigation-card help-navigation-card" data-route="help"><span class="settings-card-icon">?</span><span><strong>Simple Help</strong><small>How to add items, shop, send and receive a list.</small></span><span>›</span></button>
       </div>
       <div class="sticky-actions"><button class="button button-success button-wide" data-route="home">Return to Shopping List</button></div>
@@ -853,6 +874,23 @@ async function renderAccessibility() {
           <label for="confirm-pin"><strong>Enter it again</strong></label><input class="pin-input" id="confirm-pin" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="new-password">
           <button class="button button-success button-wide" data-enable-pin>Turn On Settings PIN</button>`}
       </div>
+    </section>`;
+}
+
+async function renderThemes() {
+  const activeTheme = normaliseTheme(await getSetting("appTheme", "easy"));
+  main.innerHTML = `
+    <section class="screen theme-screen">
+      <div class="notice-card theme-notice"><strong>Appearance only</strong><span>Changing the theme never changes your lists, buttons, categories, transfer steps or how the app works.</span></div>
+      <div class="theme-grid">
+        ${APP_THEMES.map(theme => `
+          <button class="theme-card ${activeTheme === theme.id ? "is-selected" : ""}" data-app-theme="${theme.id}" aria-pressed="${activeTheme === theme.id}">
+            <span class="theme-card-top"><strong>${escapeHTML(theme.name)}</strong>${activeTheme === theme.id ? '<span class="theme-selected-badge">Selected</span>' : ""}</span>
+            <span class="theme-preview" aria-hidden="true">${theme.swatches.map(colour => `<span style="background:${colour}"></span>`).join("")}</span>
+            <small>${escapeHTML(theme.description)}</small>
+          </button>`).join("")}
+      </div>
+      <p class="theme-device-note">Theme choice is saved on this device, so Mum can keep Easy & Clear while other devices use a different look.</p>
     </section>`;
 }
 
@@ -1156,6 +1194,14 @@ main.addEventListener("click", async event => {
   button.setAttribute("aria-busy", "true");
   try {
     if (button.dataset.summaryStatus) { state.statusFilter = button.dataset.summaryStatus; return routeTo("status"); }
+    if (button.dataset.appTheme) {
+      const theme = normaliseTheme(button.dataset.appTheme);
+      await setSetting("appTheme", theme);
+      await applyTheme(theme);
+      await renderThemes();
+      showToast(`${APP_THEMES.find(item => item.id === theme)?.name || "Theme"} selected.`);
+      return;
+    }
     if (button.hasAttribute("data-toggle-shopping-mode")) { state.shoppingMode = !state.shoppingMode; return renderShopping(); }
     if (button.dataset.toggleFavourite) {
       const isFavourite = await toggleFavouriteItem(button.dataset.toggleFavourite);
@@ -1343,6 +1389,7 @@ const ROUTE_PARENTS = {
   "custom-items": "settings",
   "data-tools": "settings",
   accessibility: "settings",
+  themes: "settings",
   help: "settings"
 };
 
@@ -1448,6 +1495,7 @@ async function registerServiceWorker() {
 
 (async function start() {
   await openDatabase();
+  await applyTheme();
   await applyAccessibility();
   const restoreNotice = await consumeRestoreNotice();
   const initialRoute = location.hash.slice(1);
