@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <symbol id="fruit-veg" viewBox="0 0 64 64">
+      <path d="M22 23c-8 0-14 7-14 17 0 12 8 20 18 20 4 0 5-2 8-2s5 2 8 2c10 0 18-8 18-20 0-10-6-17-14-17-6 0-9 3-12 3s-6-3-12-3Z" fill="#e9533f"/>
+      <path d="M34 23c1-8 6-13 14-15-1 8-6 13-14 15Z" fill="#3f9b4b"/>
+      <path d="M31 25c0-7 1-12 5-17" fill="none" stroke="#83532e" stroke-width="4" stroke-linecap="round"/>
+      <path d="M12 49c8-1 13-5 18-12" stroke="#f6b34c" stroke-width="4" stroke-linecap="round" opacity=".8"/>
+    </symbol>
+    <symbol id="meat-seafood" viewBox="0 0 64 64">
+      <path d="M8 35c9-14 22-21 39-19 8 1 11 10 6 16-9 11-20 18-34 21-9 2-16-10-11-18Z" fill="#d8655b"/>
+      <path d="M18 38c9-8 17-12 29-13" fill="none" stroke="#fff1e8" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="47" cy="26" r="5" fill="#f7d3c9"/>
+    </symbol>
+    <symbol id="dairy-eggs" viewBox="0 0 64 64">
+      <path d="M12 18h22l5 10v28H11V28l1-10Z" fill="#eef7ff" stroke="#6aa8dc" stroke-width="3"/>
+      <path d="M16 9h14l4 9H12l4-9Z" fill="#5d9bd3"/>
+      <path d="M18 34h14v10H18z" rx="4" fill="#fff"/>
+      <ellipse cx="49" cy="43" rx="9" ry="12" fill="#f4d7a3"/>
+      <ellipse cx="49" cy="40" rx="5" ry="7" fill="#fff8df" opacity=".75"/>
+    </symbol>
+    <symbol id="bakery" viewBox="0 0 64 64">
+      <path d="M9 39c0-14 10-25 23-25s23 11 23 25v13H9V39Z" fill="#d99a4b"/>
+      <path d="M18 25c4 2 7 5 8 9M30 18c3 3 5 7 5 12M43 23c-2 2-4 5-5 8" fill="none" stroke="#f7d7a6" stroke-width="4" stroke-linecap="round"/>
+      <path d="M9 43h46v9H9z" fill="#b8752e"/>
+    </symbol>
+    <symbol id="pantry" viewBox="0 0 64 64">
+      <rect x="14" y="10" width="26" height="45" rx="5" fill="#ec7c2c"/>
+      <rect x="14" y="14" width="26" height="8" rx="3" fill="#d65b12"/>
+      <rect x="18" y="28" width="18" height="16" rx="5" fill="#fff2dd"/>
+      <path d="M43 18h8v35h-8z" rx="4" fill="#e5c084"/>
+      <path d="M47 18c-3 8-3 15 0 21 3-6 3-13 0-21Z" fill="#c48b3e"/>
+    </symbol>
+    <symbol id="frozen" viewBox="0 0 64 64">
+      <g fill="none" stroke="#4b9ac7" stroke-width="4" stroke-linecap="round">
+        <path d="M32 8v48M12 20l40 24M52 20 12 44"/>
+        <path d="m32 8-6 7m6-7 6 7m-6 41-6-7m6 7 6-7"/>
+        <path d="m12 20 9 1m-9-1 3 8m37-8-9 1m9-1-3 8"/>
+        <path d="m12 44 9-1m-9 1 3-8m37 8-9-1m9 1-3-8"/>
+      </g>
+    </symbol>
+    <symbol id="drinks" viewBox="0 0 64 64">
+      <path d="M15 14h25l-3 40H18l-3-40Z" fill="#dff3f6" stroke="#4499a8" stroke-width="3"/>
+      <path d="M20 31h15l-1 18H21l-1-18Z" fill="#5bc1ce"/>
+      <path d="M39 9 52 6" stroke="#2d7885" stroke-width="4" stroke-linecap="round"/>
+      <path d="m51 6-6 25" stroke="#2d7885" stroke-width="4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="household" viewBox="0 0 64 64">
+      <path d="M22 9h20l3 8v37H19V17l3-8Z" fill="#ded5f5" stroke="#8063bf" stroke-width="3"/>
+      <path d="M25 9h14v9H25z" fill="#8063bf"/>
+      <path d="M25 30h14v13H25z" rx="5" fill="#fff"/>
+      <circle cx="47" cy="46" r="9" fill="#f5f0ff" stroke="#8063bf" stroke-width="3"/>
+    </symbol>
+    <symbol id="toiletries" viewBox="0 0 64 64">
+      <rect x="13" y="20" width="22" height="34" rx="7" fill="#f2cce5" stroke="#b95b96" stroke-width="3"/>
+      <path d="M18 12h12v8H18z" fill="#b95b96"/>
+      <path d="M39 13h5v39h-5z" rx="2" fill="#5ea8b9"/>
+      <path d="M44 15c8 1 10 5 8 12l-8-2V15Z" fill="#9dd5df"/>
+      <path d="M18 34h12" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="pharmacy" viewBox="0 0 64 64">
+      <rect x="10" y="18" width="44" height="32" rx="9" fill="#fff" stroke="#d35b5b" stroke-width="4"/>
+      <path d="M27 25h10v8h8v10h-8v8H27v-8h-8V33h8v-8Z" fill="#d35b5b"/>
+      <path d="M19 18v-6h26v6" fill="none" stroke="#d35b5b" stroke-width="4" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="pet-supplies" viewBox="0 0 64 64">
+      <circle cx="32" cy="39" r="12" fill="#9c8251"/>
+      <circle cx="16" cy="27" r="7" fill="#9c8251"/>
+      <circle cx="28" cy="18" r="7" fill="#9c8251"/>
+      <circle cx="45" cy="20" r="7" fill="#9c8251"/>
+      <circle cx="50" cy="34" r="7" fill="#9c8251"/>
+    </symbol>
+    <symbol id="other" viewBox="0 0 64 64">
+      <path d="M13 18h7l5 25h25l5-18H24" fill="#eef1f5" stroke="#657282" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="29" cy="52" r="4" fill="#657282"/>
+      <circle cx="48" cy="52" r="4" fill="#657282"/>
+      <path d="M44 10v15M36.5 17.5h15" stroke="#657282" stroke-width="4" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+</svg>

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "our-shopping-list-flat-shell-v13";
+const CACHE_VERSION = "our-shopping-list-flat-shell-v14";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -13,7 +13,8 @@ const APP_SHELL = [
   "./apple-touch-icon.png",
   "./coles-logo.svg",
   "./woolworths-logo.svg",
-  "./aldi-logo.png"
+  "./aldi-logo.png",
+  "./category-icons.svg"
 ];
 
 self.addEventListener("install", event => {

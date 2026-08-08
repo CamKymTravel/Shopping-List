@@ -8,8 +8,7 @@ import {
   previewTransfer, acceptTransfer, exportFullBackup, validateBackup, restoreFullBackup,
   getPinState, setSettingsPin, clearSettingsPin, verifySettingsPin,
   getAccessibilitySettings, setAccessibilitySettings, consumeRestoreNotice,
-  hidePresetItem, restorePresetItem, getFavouriteItemIds, toggleFavouriteItem, getFavouriteItems,
-  getRecentlyBought, addItemAgain
+  hidePresetItem, restorePresetItem, getFavouriteItemIds, toggleFavouriteItem, getFavouriteItems
 } from "./db.js";
 
 const main = document.querySelector("#main-content");
@@ -28,7 +27,7 @@ const personPhotoInput = document.querySelector("#person-photo-input");
 const receiveFileInput = document.querySelector("#receive-file-input");
 const restoreFileInput = document.querySelector("#restore-file-input");
 const updateRegion = document.querySelector("#update-region");
-const APP_BUILD = "0.8.0";
+const APP_BUILD = "0.9.0";
 
 const state = {
   route: "home",
@@ -54,7 +53,6 @@ const ROUTES = {
   status: { title: "This Week’s Shop", subtitle: "See items by shopping status", render: renderStatusBreakdown },
   meals: { title: "Meal Ideas", subtitle: "Shared by everyone", render: renderMeals },
   regular: { title: "Regular Items", subtitle: "Things you buy often", render: renderRegularItems },
-  recent: { title: "Recently Bought", subtitle: "Quickly add familiar items again", render: renderRecentlyBought },
   transfer: { title: "Send or Receive", subtitle: "Easy transfer between people and devices", render: renderTransfer },
   send: { title: "Send My List", subtitle: "Small file, text message or copy", render: renderSend },
   receive: { title: "Receive a List", subtitle: "Open a small file or receive from your other device", render: renderReceive },
@@ -84,7 +82,7 @@ function storeDisplayName(store) {
 function storeBrandMarkup(store, compact = false) {
   const safeStore = SHOP_STORES.includes(store) ? store : "Either";
   if (safeStore === "Either") {
-    return `<span class="store-brand-badge store-brand-any ${compact ? "is-compact" : ""}"><span class="store-any-icon" aria-hidden="true">🛒</span><span>Any Store</span></span>`;
+    return `<span class="store-brand-badge store-brand-any ${compact ? "is-compact" : ""}"><span class="store-any-icon" aria-hidden="true">${uiIcon("cart")}</span><span>Any Store</span></span>`;
   }
   const asset = safeStore === "Coles" ? "coles-logo.svg" : safeStore === "Woolworths" ? "woolworths-logo.svg" : "aldi-logo.png";
   return `<span class="store-brand-badge store-brand-${safeStore.toLowerCase()} ${compact ? "is-compact" : ""}"><img src="./${asset}" alt="${escapeHTML(storeDisplayName(safeStore))}"></span>`;
@@ -116,6 +114,30 @@ function avatarMarkup(person, large = false) {
   const className = `person-avatar${large ? " person-avatar-large" : ""}`;
   if (photo) return `<span class="${className}"><img src="${photo}" alt=""></span>`;
   return `<span class="${className}" aria-hidden="true">${escapeHTML(initials(person?.name))}</span>`;
+}
+
+function uiIcon(name, className = "ui-icon") {
+  const icons = {
+    add: '<path d="M12 5v14M5 12h14"/>',
+    list: '<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
+    people: '<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M17 11a4 4 0 0 0 0-8M23 21v-2a4 4 0 0 0-3-3.9"/>',
+    meal: '<path d="M4 3v8M7 3v8M4 7h3M5.5 11v10M14 3v8c0 2 1.5 3 3 3s3-1 3-3V3M17 14v7"/>',
+    star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2 7.5 14 3 9.6l6.2-.9L12 3Z"/>',
+    phone: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M10 18h4"/>',
+    receive: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>',
+    send: '<path d="m3 11 18-8-8 18-2-8-8-2Z"/><path d="m11 13 10-10"/>',
+    help: '<circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 1 1 4.2 1.8c-1 .9-1.7 1.3-1.7 3.2M12 18h.01"/>',
+    settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21h-4v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1A1.7 1.7 0 0 0 4.6 15 1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V3h4v.1a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.1v4H21a1.7 1.7 0 0 0-1.6 1Z"/>',
+    cart: '<circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 8H6"/>',
+    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4L16.5 3.5Z"/>'
+  };
+  const body = icons[name] || icons.list;
+  return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+}
+
+function categoryIconMarkup(category, className = "category-vector-icon") {
+  const id = category?.id || "other";
+  return `<svg class="${className}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="./category-icons.svg#${escapeHTML(id)}"></use></svg>`;
 }
 
 function routeTo(route, options = {}) {
@@ -351,20 +373,16 @@ async function renderHome() {
       </div>
       ${owner ? "" : `<div class="setup-card"><strong>First time here?</strong><span>Add your name once so you can send lists between people and devices.</span><button class="button button-primary button-wide" data-route="people">Set Up My Profile</button></div>`}
       <nav class="primary-actions" aria-label="Main actions">
-        <button class="home-action action-blue" data-route="add"><span class="action-icon">＋</span><span>Add What We Need</span><span class="action-arrow">›</span></button>
-        <button class="home-action action-purple" data-route="shopping"><span class="action-icon">📋</span><span>View Shopping List</span><span class="action-arrow">›</span></button>
-        <button class="home-action action-green" data-route="transfer"><span class="action-icon">👥</span><span>Send or Receive a List</span><span class="action-arrow">›</span></button>
-        <button class="home-action action-orange" data-route="meals"><span class="action-icon">🍽️</span><span>Meal Ideas</span><span class="action-arrow">›</span></button>
+        <button class="home-action action-blue" data-route="add"><span class="action-icon">${uiIcon("add")}</span><span>Add What We Need</span><span class="action-arrow">›</span></button>
+        <button class="home-action action-purple" data-route="shopping"><span class="action-icon">${uiIcon("list")}</span><span>View Shopping List</span><span class="action-arrow">›</span></button>
+        <button class="home-action action-green" data-route="transfer"><span class="action-icon">${uiIcon("people")}</span><span>Send or Receive a List</span><span class="action-arrow">›</span></button>
+        <button class="home-action action-orange" data-route="meals"><span class="action-icon">${uiIcon("meal")}</span><span>Meal Ideas</span><span class="action-arrow">›</span></button>
       </nav>
-      <div class="quick-pick-grid" aria-label="Quick choices">
-        <button class="quick-pick-card regular-card" data-route="regular"><span aria-hidden="true">★</span><strong>Regular Items</strong><small>Things we buy often</small></button>
-        <button class="quick-pick-card recent-card" data-route="recent"><span aria-hidden="true">↻</span><strong>Recently Bought</strong><small>Add something again</small></button>
-      </div>
     </section>`;
 }
 
 async function renderAddItems() {
-  const [{ categories, items, hiddenItems, selectedIds, localContributions }, favouriteIds] = await Promise.all([getItemLibrary(), getFavouriteItemIds()]);
+  const [{ categories, items, hiddenItems, selectedIds, localContributions }, favouriteIds, favouriteItems] = await Promise.all([getItemLibrary(), getFavouriteItemIds(), getFavouriteItems()]);
   const selectedCategory = categories.find(category => category.id === state.selectedCategoryId);
   const localByItem = new Map((localContributions || []).map(row => [row.itemId, row]));
   if (!selectedCategory) {
@@ -372,18 +390,25 @@ async function renderAddItems() {
     main.innerHTML = `
       <section class="screen">
         <h1 class="section-heading">Add What We Need</h1>
-        <p class="section-subtitle">Choose a shopping category, or use your regular items.</p>
-        <button class="regular-items-banner" data-route="regular"><span aria-hidden="true">★</span><span><strong>Regular Items</strong><small>${favouriteIds.size} saved ${favouriteIds.size === 1 ? "item" : "items"}</small></span><span aria-hidden="true">›</span></button>
+        <p class="section-subtitle">Regular Items are first. Categories are underneath.</p>
+        <section class="regular-feature-card" aria-labelledby="regular-feature-title">
+          <div class="regular-feature-heading"><span class="regular-feature-icon">${uiIcon("star")}</span><span><strong id="regular-feature-title">Regular Items</strong><small>Things you buy most often</small></span><button class="regular-view-all" data-route="regular">View All</button></div>
+          ${favouriteItems.length ? `<div class="regular-preview-list">${favouriteItems.slice(0, 6).map(item => {
+            const category = CATEGORIES.find(row => row.id === item.categoryId);
+            const selected = selectedIds.has(item.id);
+            return `<button class="regular-preview-item ${selected ? "is-selected" : ""}" data-toggle-item="${item.id}" aria-pressed="${selected}"><span class="regular-preview-art">${categoryIconMarkup(category)}</span><span><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(category?.shortName || "Other")}</small></span><span class="regular-preview-action">${selected ? "✓" : "+"}</span></button>`;
+          }).join("")}</div>` : `<button class="regular-empty-button" data-route="regular"><span>☆</span><strong>Choose your regular items</strong><small>Mark the things you buy most often.</small></button>`}
+        </section>
         <div class="category-grid">
           ${categories.map(category => {
             const count = [...items, ...hiddenItems].filter(item => item.categoryId === category.id && selectedIds.has(item.id)).length;
             return `<button class="category-card" style="${categoryStyle(category)}" data-category="${category.id}">
-              <span class="category-emoji" aria-hidden="true">${category.emoji}</span>
+              <span class="category-emoji" aria-hidden="true">${categoryIconMarkup(category)}</span>
               <span class="category-name-row"><span class="category-name">${escapeHTML(category.shortName)}</span><span class="category-count">${count}</span></span>
             </button>`;
           }).join("")}
         </div>
-        <div class="sticky-actions"><button class="button button-success button-wide" data-route="shopping">🛒 Open Shopping List</button></div>
+        <div class="sticky-actions"><button class="button button-success button-wide" data-route="shopping">${uiIcon("cart")} Open Shopping List</button></div>
       </section>`;
     return;
   }
@@ -402,11 +427,11 @@ async function renderAddItems() {
           <h1 class="section-heading">${escapeHTML(selectedCategory.name)}</h1>
           <p class="section-subtitle">${editMode ? "Remove items you never buy, or mark regular items with a star. Items stay alphabetical." : "Tap an item, then set its quantity and store here."}</p>
         </div>
-        <button class="button ${editMode ? "button-success" : "button-secondary"} category-edit-button" data-toggle-category-edit>${editMode ? "✓ Done" : "✏️ Edit List"}</button>
+        <button class="button ${editMode ? "button-success" : "button-secondary"} category-edit-button" data-toggle-category-edit>${editMode ? "✓ Done" : `${uiIcon("edit")} Edit List`}</button>
       </div>
       ${editMode ? `<div class="notice-card compact-notice"><strong>Editing this category</strong><span>Items are automatically alphabetical. Use the star for things you buy often. Removing an item only hides it from this category.</span></div>` : ""}
       <div class="panel" style="${categoryStyle(selectedCategory)}" aria-labelledby="selected-category-heading">
-        <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${selectedCategory.emoji}</span><strong id="selected-category-heading">${escapeHTML(selectedCategory.name)}</strong><span class="panel-count">${categoryItems.length} items</span></div>
+        <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${categoryIconMarkup(selectedCategory)}</span><strong id="selected-category-heading">${escapeHTML(selectedCategory.name)}</strong><span class="panel-count">${categoryItems.length} items</span></div>
         <div class="panel-body">
           <div class="list-toolbar"><input class="search-field" id="item-search" type="search" placeholder="Search this category" value="${escapeHTML(state.itemSearch)}" aria-label="Search ${escapeHTML(selectedCategory.name)}"></div>
           ${categoryItems.length ? categoryItems.map((item) => {
@@ -452,8 +477,8 @@ async function renderAddItems() {
           </div>
         </section>` : ""}
       <div class="sticky-actions">
-        <button class="button button-primary button-wide" data-custom-item="${selectedCategory.id}">＋ Add Custom Item</button>
-        ${editMode ? `<button class="button button-success button-wide" data-toggle-category-edit>✓ Done Editing</button>` : `<button class="button button-success button-wide" data-route="shopping">🛒 Open Shopping List</button>`}
+        <button class="button button-primary button-wide" data-custom-item="${selectedCategory.id}">${uiIcon("add")} Add Custom Item</button>
+        ${editMode ? `<button class="button button-success button-wide" data-toggle-category-edit>✓ Done Editing</button>` : `<button class="button button-success button-wide" data-route="shopping">${uiIcon("cart")} Open Shopping List</button>`}
       </div>
     </section>`;
   const search = document.querySelector("#item-search");
@@ -469,35 +494,17 @@ async function renderRegularItems() {
   const selectedIds = library.selectedIds;
   main.innerHTML = `
     <section class="screen quick-list-screen">
-      <div class="quick-list-hero regular-hero"><span aria-hidden="true">★</span><div><h1>Regular Items</h1><p>Things you buy often. Tap Add to put one on this week’s list.</p></div></div>
+      <div class="quick-list-hero regular-hero"><span aria-hidden="true">${uiIcon("star")}</span><div><h1>Regular Items</h1><p>Your quickest way to build the weekly list.</p></div></div>
       ${items.length ? `<div class="quick-item-list">${items.map(item => {
         const selected = selectedIds.has(item.id);
         const category = CATEGORIES.find(row => row.id === item.categoryId);
         return `<article class="quick-item-row" style="${categoryStyle(category)}">
-          <span class="quick-item-icon" aria-hidden="true">${category?.emoji || "🛒"}</span>
+          <span class="quick-item-icon" aria-hidden="true">${categoryIconMarkup(category)}</span>
           <span class="quick-item-copy"><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(category?.name || "Other")}</small></span>
           <button class="button ${selected ? "button-secondary" : "button-success"}" data-toggle-item="${item.id}">${selected ? "On List ✓" : "＋ Add"}</button>
         </article>`;
       }).join("")}</div>` : `<div class="empty-card"><div class="empty-icon">★</div><h2>No Regular Items yet</h2><p>Open a category and tap the star beside anything you buy often.</p><button class="button button-primary" data-route="add">Choose Regular Items</button></div>`}
-      <div class="sticky-actions"><button class="button button-success button-wide" data-route="shopping">🛒 Open Shopping List</button></div>
-    </section>`;
-}
-
-async function renderRecentlyBought() {
-  const [recent, library] = await Promise.all([getRecentlyBought(30), getItemLibrary()]);
-  const selectedIds = library.selectedIds;
-  main.innerHTML = `
-    <section class="screen quick-list-screen">
-      <div class="quick-list-hero recent-hero"><span aria-hidden="true">↻</span><div><h1>Recently Bought</h1><p>Quickly add something you bought in an earlier shop.</p></div></div>
-      ${recent.length ? `<div class="quick-item-list">${recent.map(row => {
-        const selected = selectedIds.has(row.item.id);
-        return `<article class="quick-item-row" style="${categoryStyle(row.category)}">
-          <span class="quick-item-icon" aria-hidden="true">${row.category?.emoji || "🛒"}</span>
-          <span class="quick-item-copy"><strong>${escapeHTML(row.item.name)}</strong><small>${escapeHTML(row.category?.name || "Other")}</small></span>
-          <button class="button ${selected ? "button-secondary" : "button-success"}" ${selected ? "disabled" : `data-add-again="${row.item.id}"`}>${selected ? "On List ✓" : "＋ Add Again"}</button>
-        </article>`;
-      }).join("")}</div>` : `<div class="empty-card"><div class="empty-icon">↻</div><h2>No recent items yet</h2><p>Items will appear here after you finish your first shopping trip.</p><button class="button button-primary" data-route="add">Add What We Need</button></div>`}
-      <div class="sticky-actions"><button class="button button-success button-wide" data-route="shopping">🛒 Open Shopping List</button></div>
+      <div class="sticky-actions"><button class="button button-success button-wide" data-route="shopping">${uiIcon("cart")} Open Shopping List</button></div>
     </section>`;
 }
 
@@ -516,14 +523,14 @@ async function renderShopping() {
     <section class="screen ${state.shoppingMode ? "shopping-mode-screen" : ""}">
       <div class="shopping-mode-heading">
         <div class="summary-card compact-summary shopping-count-card"><h1>${active.length} ${active.length === 1 ? "item" : "items"} to buy</h1>${state.shoppingMode ? "<p>Shopping Mode is on</p>" : ""}</div>
-        ${active.length ? `<button class="button ${state.shoppingMode ? "button-secondary" : "button-primary"} shopping-mode-toggle" data-toggle-shopping-mode>${state.shoppingMode ? "← Exit Shopping Mode" : "🛒 Start Shopping Mode"}</button>` : ""}
+        ${active.length ? `<button class="button ${state.shoppingMode ? "button-secondary" : "button-primary"} shopping-mode-toggle" data-toggle-shopping-mode>${state.shoppingMode ? "← Exit Shopping Mode" : `${uiIcon("cart")} Start Shopping Mode`}</button>` : ""}
       </div>
-      ${state.shoppingMode ? "" : `<button class="meal-shortcut-button" data-route="meals"><span aria-hidden="true">🍽️</span><span><strong>View Meal Ideas</strong><small>${meals.length} shared ${meals.length === 1 ? "idea" : "ideas"}</small></span><span aria-hidden="true">›</span></button>`}
+      ${state.shoppingMode ? "" : `<button class="meal-shortcut-button" data-route="meals"><span aria-hidden="true">${uiIcon("meal")}</span><span><strong>View Meal Ideas</strong><small>${meals.length} shared ${meals.length === 1 ? "idea" : "ideas"}</small></span><span aria-hidden="true">›</span></button>`}
       ${active.length ? [...grouped.entries()].map(([categoryId, rows]) => {
         const category = rows[0].category || CATEGORIES.find(row => row.id === categoryId);
         const sortedRows = [...rows].sort((a, b) => a.item.name.localeCompare(b.item.name, undefined, { sensitivity: "base" }));
         return `<section class="panel shopping-category" style="${categoryStyle(category)}" aria-labelledby="shopping-category-${escapeHTML(category.id)}">
-          <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${category.emoji}</span><strong id="shopping-category-${escapeHTML(category.id)}">${escapeHTML(category.name)}</strong><span class="panel-count">${rows.length}</span></div>
+          <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${categoryIconMarkup(category)}</span><strong id="shopping-category-${escapeHTML(category.id)}">${escapeHTML(category.name)}</strong><span class="panel-count">${rows.length}</span></div>
           ${sortedRows.map(row => renderShoppingRow(row, category)).join("")}
         </section>`;
       }).join("") : `<div class="empty-card"><div class="empty-icon">🛒</div><h2>Your shopping list is empty</h2><p>Tap Add What We Need to choose some items.</p><button class="button button-primary" data-route="add">Add What We Need</button></div>`}
@@ -573,7 +580,7 @@ async function renderStatusBreakdown() {
         const category = groupRows[0].category || CATEGORIES.find(row => row.id === categoryId);
         const sortedRows = [...groupRows].sort((a, b) => a.item.name.localeCompare(b.item.name, undefined, { sensitivity: "base" }));
         return `<section class="panel shopping-category" style="${categoryStyle(category)}">
-          <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${category.emoji}</span><strong>${escapeHTML(category.name)}</strong><span class="panel-count">${sortedRows.length}</span></div>
+          <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${categoryIconMarkup(category)}</span><strong>${escapeHTML(category.name)}</strong><span class="panel-count">${sortedRows.length}</span></div>
           ${status === "active"
             ? sortedRows.map(row => renderShoppingRow(row, category)).join("")
             : `<div class="status-list">${sortedRows.map(row => renderStatusRow(row, status)).join("")}</div>`}
@@ -637,7 +644,7 @@ async function renderMeals() {
         </div>
       </div>
       <section class="panel meal-list-panel">
-        <div class="panel-header"><span class="panel-emoji" aria-hidden="true">🍽️</span><strong>Everyone’s Meal Ideas</strong><span class="panel-count">${saved.length}</span></div>
+        <div class="panel-header"><span class="panel-emoji" aria-hidden="true">${uiIcon("meal")}</span><strong>Everyone’s Meal Ideas</strong><span class="panel-count">${saved.length}</span></div>
         <div class="saved-meals">${saved.length ? saved.map(row => `<article class="saved-meal-row">
           ${avatarMarkup({ name: row.displayRequesterName, photo: row.displayRequesterPhoto })}
           <span class="saved-meal-copy"><strong>${escapeHTML(row.name)}</strong><small>Suggested by ${escapeHTML(row.displayRequesterName)}</small></span>
@@ -653,9 +660,9 @@ async function renderTransfer() {
       <h1 class="section-heading">Send or Receive a List</h1>
       <p class="section-subtitle">Choose one large button. The easiest iPad-to-iPhone method for Mum is first.</p>
       <div class="transfer-choice-grid transfer-simple-grid">
-        <button class="transfer-choice self-copy-choice" data-copy-self ${owner ? "" : "disabled"}><span aria-hidden="true">📱</span><strong>Send to My Phone</strong><small>On your iPad, send your list. Then open this app on your iPhone and tap Receive My List.</small></button>
-        <button class="transfer-choice send-choice" data-route="send"><span aria-hidden="true">💬</span><strong>Send to Someone</strong><small>Prepare a small Shopping List file or message to send to Cameron, Kim or Leslie.</small></button>
-        <button class="transfer-choice receive-choice" data-route="receive"><span aria-hidden="true">📥</span><strong>Receive My List</strong><small>Use this after Send to My Phone, or after someone sends you a small Shopping List file.</small></button>
+        <button class="transfer-choice self-copy-choice" data-copy-self ${owner ? "" : "disabled"}><span aria-hidden="true">${uiIcon("phone")}</span><strong>Send to My Phone</strong><small>On your iPad, send your list. Then open this app on your iPhone and tap Receive My List.</small></button>
+        <button class="transfer-choice send-choice" data-route="send"><span aria-hidden="true">${uiIcon("send")}</span><strong>Send to Someone</strong><small>Prepare a small Shopping List file or message to send to Cameron, Kim or Leslie.</small></button>
+        <button class="transfer-choice receive-choice" data-route="receive"><span aria-hidden="true">${uiIcon("receive")}</span><strong>Receive My List</strong><small>Use this after Send to My Phone, or after someone sends you a small Shopping List file.</small></button>
       </div>
       ${owner ? "" : `<div class="notice-card"><strong>Set up My Profile first</strong><span>Your name is needed before this device can send or copy a list.</span><button class="button button-primary button-wide" data-route="people">Set Up My Profile</button></div>`}
     </section>`;
@@ -698,7 +705,7 @@ async function renderSend() {
 async function renderReceive() {
   main.innerHTML =     `<section class="screen receive-screen">
       <div class="receive-hero polished-receive-hero">
-        <span class="receive-icon" aria-hidden="true">📥</span>
+        <span class="receive-icon" aria-hidden="true">${uiIcon("receive", "ui-icon ui-icon-large")}</span>
         <h1>Receive a List</h1>
         <p>If you sent your list from your own iPad, tap <strong>Receive My List</strong>. If someone sent you a small Shopping List file, tap <strong>Open Shopping List File</strong>.</p>
         <div class="receive-primary-actions">
@@ -803,11 +810,11 @@ async function renderSettings() {
       <h1 class="section-heading">Settings</h1>
       <p class="section-subtitle">Setup and data tools are kept away from everyday shopping.</p>
       <div class="settings-grid">
-        <button class="settings-navigation-card" data-route="people"><span class="settings-card-icon">👥</span><span><strong>My Profile and People</strong><small>${owner ? `My profile: ${escapeHTML(owner.name)} • ` : "No profile yet • "}${people.length} ${people.length === 1 ? "person" : "people"}</small></span><span>›</span></button>
-        <button class="settings-navigation-card" data-route="custom-items"><span class="settings-card-icon">📝</span><span><strong>Custom Items</strong><small>${customItems.length} saved custom ${customItems.length === 1 ? "item" : "items"}</small></span><span>›</span></button>
-        <button class="settings-navigation-card" data-route="data-tools"><span class="settings-card-icon">💾</span><span><strong>Backup and Restore</strong><small>Export one complete backup or replace from a saved backup.</small></span><span>›</span></button>
-        <button class="settings-navigation-card" data-route="accessibility"><span class="settings-card-icon">👓</span><span><strong>Accessibility and PIN</strong><small>Large text is on • Settings PIN ${pinState.enabled ? "is on" : "is off"}</small></span><span>›</span></button>
-        <button class="settings-navigation-card help-navigation-card" data-route="help"><span class="settings-card-icon">?</span><span><strong>Simple Help</strong><small>How to add items, shop, send and receive a list.</small></span><span>›</span></button>
+        <button class="settings-navigation-card" data-route="people"><span class="settings-card-icon">${uiIcon("people")}</span><span><strong>My Profile and People</strong><small>${owner ? `My profile: ${escapeHTML(owner.name)} • ` : "No profile yet • "}${people.length} ${people.length === 1 ? "person" : "people"}</small></span><span>›</span></button>
+        <button class="settings-navigation-card" data-route="custom-items"><span class="settings-card-icon">${uiIcon("edit")}</span><span><strong>Custom Items</strong><small>${customItems.length} saved custom ${customItems.length === 1 ? "item" : "items"}</small></span><span>›</span></button>
+        <button class="settings-navigation-card" data-route="data-tools"><span class="settings-card-icon">${uiIcon("receive")}</span><span><strong>Backup and Restore</strong><small>Export one complete backup or replace from a saved backup.</small></span><span>›</span></button>
+        <button class="settings-navigation-card" data-route="accessibility"><span class="settings-card-icon">Aa</span><span><strong>Accessibility and PIN</strong><small>Large text is on • Settings PIN ${pinState.enabled ? "is on" : "is off"}</small></span><span>›</span></button>
+        <button class="settings-navigation-card help-navigation-card" data-route="help"><span class="settings-card-icon">${uiIcon("help")}</span><span><strong>Simple Help</strong><small>How to add items, shop, send and receive a list.</small></span><span>›</span></button>
       </div>
       <div class="sticky-actions"><button class="button button-success button-wide" data-route="home">Return to Shopping List</button></div>
       <p class="build-label">Version 1 • Build ${APP_BUILD}</p>
@@ -840,7 +847,7 @@ async function renderCustomItems() {
       <div class="custom-management-list">
         ${items.length ? items.map(item => {
           const category = categoryMap.get(item.categoryId) || categoryMap.get("other");
-          return `<article class="custom-management-row"><span class="custom-category-icon" style="${categoryStyle(category)}">${category.emoji}</span><span><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(category.name)} • ${escapeHTML(item.defaultStore)}</small></span><div><button class="button button-secondary" data-edit-custom="${item.id}">Edit</button><button class="text-button danger-text" data-delete-custom="${item.id}">Delete</button></div></article>`;
+          return `<article class="custom-management-row"><span class="custom-category-icon" style="${categoryStyle(category)}">${categoryIconMarkup(category)}</span><span><strong>${escapeHTML(item.name)}</strong><small>${escapeHTML(category.name)} • ${escapeHTML(item.defaultStore)}</small></span><div><button class="button button-secondary" data-edit-custom="${item.id}">Edit</button><button class="text-button danger-text" data-delete-custom="${item.id}">Delete</button></div></article>`;
         }).join("") : `<div class="empty-card"><div class="empty-icon">📝</div><h2>No custom items yet</h2><p>Use Add Custom Item in any category, or add one here.</p><button class="button button-primary" data-custom-item="other">Add Custom Item</button></div>`}
       </div>
     </section>`;
@@ -1188,12 +1195,6 @@ main.addEventListener("click", async event => {
       showToast(isFavourite ? "Added to Regular Items." : "Removed from Regular Items.");
       return;
     }
-    if (button.dataset.addAgain) {
-      const added = await addItemAgain(button.dataset.addAgain);
-      await renderRecentlyBought();
-      showToast(added ? "Added to this week’s shopping list." : "That item is already on your list.");
-      return;
-    }
     if (button.dataset.route) return routeTo(button.dataset.route);
     if (button.dataset.category) { state.itemSearch = ""; state.categoryEditMode = false; return routeTo("add", { categoryId: button.dataset.category }); }
     if (button.hasAttribute("data-category-back")) { state.selectedCategoryId = null; state.itemSearch = ""; state.categoryEditMode = false; return renderAddItems(); }
@@ -1260,7 +1261,7 @@ main.addEventListener("click", async event => {
     }
     if (button.hasAttribute("data-finish-shopping")) {
       const confirmed = await confirmAction({ title: "Finish Shopping?", message: "Got It items will be cleared. Couldn’t Get items will stay on the next shopping list. If somebody needs the results, send the list before finishing.", confirmText: "Finish Shopping", danger: false });
-      if (confirmed) { state.shoppingMode = false; await finishShopping(); await renderShopping(); showToast("Shopping finished. Bought items are now available in Recently Bought. Unavailable items are still on your list.", 5200); }
+      if (confirmed) { state.shoppingMode = false; await finishShopping(); await renderShopping(); showToast("Shopping finished. Unavailable items are still on your list.", 5200); }
       return;
     }
     if (button.hasAttribute("data-add-meal")) { const input = document.querySelector("#custom-meal"); const name = await createMealSuggestion(input.value); await renderMeals(); showToast(`${name} was saved as a meal idea.`); return; }
@@ -1362,7 +1363,6 @@ const ROUTE_PARENTS = {
   status: "home",
   meals: "home",
   regular: "home",
-  recent: "home",
   transfer: "home",
   send: "transfer",
   receive: "transfer",
