@@ -27,7 +27,7 @@ const personPhotoInput = document.querySelector("#person-photo-input");
 const receiveFileInput = document.querySelector("#receive-file-input");
 const restoreFileInput = document.querySelector("#restore-file-input");
 const updateRegion = document.querySelector("#update-region");
-const APP_BUILD = "0.9.4";
+const APP_BUILD = "0.9.5";
 
 const state = {
   route: "home",
@@ -135,9 +135,8 @@ function uiIcon(name, className = "ui-icon") {
   return `<svg class="${className}" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 }
 
-function categoryIconMarkup(category, className = "category-vector-icon") {
-  const id = category?.id || "other";
-  return `<svg class="${className}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="./category-icons.svg#${escapeHTML(id)}"></use></svg>`;
+function categoryIconMarkup(category, className = "category-original-icon") {
+  return `<span class="${className}" aria-hidden="true">${escapeHTML(category?.emoji || "🛒")}</span>`;
 }
 
 function routeTo(route, options = {}) {

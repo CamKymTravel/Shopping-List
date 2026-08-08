@@ -1791,3 +1791,11 @@ body {
   }
   .category-card .category-emoji { min-height: 72px; }
 }
+
+
+/* Build 0.9.5 — original category icon family restored; graphics-only correction */
+.category-original-icon{display:inline-flex;align-items:center;justify-content:center;min-width:1em;font-family:-apple-system,BlinkMacSystemFont,"Apple Color Emoji","Segoe UI Emoji",sans-serif;font-size:1em;line-height:1;letter-spacing:-.08em;filter:drop-shadow(0 3px 4px rgba(40,44,52,.12));transform:translateZ(0)}
+.category-card .category-original-icon{font-size:clamp(2.9rem,13vw,4.8rem);min-height:1.1em}
+.panel-emoji .category-original-icon,.custom-category-icon .category-original-icon{font-size:1.55em}
+.category-card{overflow:hidden}
+.category-card .category-emoji{background:rgba(255,255,255,.46);border:1px solid rgba(255,255,255,.75);box-shadow:0 7px 16px rgba(40,44,52,.08),inset 0 1px 0 rgba(255,255,255,.92)}
