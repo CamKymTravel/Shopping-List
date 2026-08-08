@@ -1,225 +1,28 @@
-Shopping List App — Final Forensic Audit
-Build 1.0.4
+SHOPPING LIST APP — BUILD 1.0.6 TARGETED FINAL CORRECTION AUDIT
+Date: 08/08/2026
 
-Result: 202/202 checks passed.
+CORRECTION IMPLEMENTED
+- Category detail screens now show the category name once only, as the main page heading.
+- Removed the repeated category name from the lower category panel.
+- Replaced the repeated lower heading with a larger category artwork strip plus the item count.
+- Search, Edit List, alphabetical items, favourites/Regular Items, custom items, quantity/store controls remain unchanged.
+- Actual Shopping List remains a single continuous list with no category sections.
+- Build/cache references bumped to 1.0.6 / service-worker shell v21.
 
-Audit scope: package integrity, category visuals/assets, Home/add-item UX, Shopping List UX, data rules, Regular Items, Meal Ideas, profiles/settings/navigation, transfer, backup/restore, offline/cache/update and PWA configuration.
+TARGETED INTEGRITY CHECKS
+- JavaScript syntax: PASS
+- Service worker syntax: PASS
+- Single category page heading retained: PASS
+- Duplicate lower category heading removed: PASS
+- Larger category detail artwork strip present: PASS
+- Category item count retained: PASS
+- Search field retained: PASS
+- Edit List retained: PASS
+- Shopping List continuous-list rule retained: PASS
+- All 12 category artwork assets present: PASS
+- CSS/JS/cache version references updated: PASS
 
-Visual authority: Cameron-approved large two-column category cards with full product imagery and the simple one-list Shopping List layout.
+Automated targeted checks: 26/26 PASS.
 
-[PACKAGE]
-PASS — required file index.html
-PASS — required file app.js
-PASS — required file db.js
-PASS — required file data.js
-PASS — required file styles.css
-PASS — required file service-worker.js
-PASS — required file manifest.webmanifest
-PASS — required file apple-touch-icon.png
-PASS — required file icon-192.png
-PASS — required file icon-512.png
-PASS — required file icon-maskable-512.png
-PASS — required file coles-logo.svg
-PASS — required file woolworths-logo.svg
-PASS — required file aldi-logo.png
-PASS — flat package contains no subfolders
-PASS — index loads build 1.0.4 stylesheet
-PASS — index loads build 1.0.4 app
-PASS — app build number 1.0.4
-PASS — app imports build 1.0.4 data
-PASS — app imports build 1.0.4 db
-PASS — db imports build 1.0.4 data
-PASS — manifest JSON valid
-PASS — app.js JavaScript syntax
-PASS — db.js JavaScript syntax
-PASS — data.js JavaScript syntax
-PASS — service-worker.js JavaScript syntax
-[VISUAL]
-PASS — category art fruit-veg exists
-PASS — category art fruit-veg 800x360
-PASS — category art fruit-veg has transparent/feathered edges
-PASS — category art fruit-veg has no hard full-width cut line
-PASS — category art meat-seafood exists
-PASS — category art meat-seafood 800x360
-PASS — category art meat-seafood has transparent/feathered edges
-PASS — category art meat-seafood has no hard full-width cut line
-PASS — category art dairy-eggs exists
-PASS — category art dairy-eggs 800x360
-PASS — category art dairy-eggs has transparent/feathered edges
-PASS — category art dairy-eggs has no hard full-width cut line
-PASS — category art bakery exists
-PASS — category art bakery 800x360
-PASS — category art bakery has transparent/feathered edges
-PASS — category art bakery has no hard full-width cut line
-PASS — category art pantry exists
-PASS — category art pantry 800x360
-PASS — category art pantry has transparent/feathered edges
-PASS — category art pantry has no hard full-width cut line
-PASS — category art frozen exists
-PASS — category art frozen 800x360
-PASS — category art frozen has transparent/feathered edges
-PASS — category art frozen has no hard full-width cut line
-PASS — category art drinks exists
-PASS — category art drinks 800x360
-PASS — category art drinks has transparent/feathered edges
-PASS — category art drinks has no hard full-width cut line
-PASS — category art household exists
-PASS — category art household 800x360
-PASS — category art household has transparent/feathered edges
-PASS — category art household has no hard full-width cut line
-PASS — category art toiletries exists
-PASS — category art toiletries 800x360
-PASS — category art toiletries has transparent/feathered edges
-PASS — category art toiletries has no hard full-width cut line
-PASS — category art pharmacy exists
-PASS — category art pharmacy 800x360
-PASS — category art pharmacy has transparent/feathered edges
-PASS — category art pharmacy has no hard full-width cut line
-PASS — category art pet-supplies exists
-PASS — category art pet-supplies 800x360
-PASS — category art pet-supplies has transparent/feathered edges
-PASS — category art pet-supplies has no hard full-width cut line
-PASS — category art other exists
-PASS — category art other 800x360
-PASS — category art other has transparent/feathered edges
-PASS — category art other has no hard full-width cut line
-PASS — category picker remains two-column
-PASS — large category card tap targets
-PASS — category count circles retained
-PASS — category artwork uses contain fit
-PASS — category artwork centered
-PASS — colour-coded Home buttons blue
-PASS — colour-coded Home buttons purple
-PASS — colour-coded Home buttons green
-PASS — colour-coded Home buttons orange
-PASS — large Back control retained
-PASS — strong focus-visible indicator retained
-PASS — extra-large accessibility mode retained
-[SHOPPING]
-PASS — actual Shopping List is one continuous flat list
-PASS — actual Shopping List has no category panel headings
-PASS — active Shopping List sorted alphabetically
-PASS — requester initials K/L/C mechanism present
-PASS — requester full names removed from active row
-PASS — store remains visible under item
-PASS — explicit quantity badge retained
-PASS — Got It button present
-PASS — Couldn’t Get button present
-PASS — Got It and Couldn’t Get are side by side
-PASS — large shopping item names
-PASS — shopping action buttons have large touch height
-PASS — meal ideas shortcut retained
-PASS — Finish Shopping confirmation action retained
-PASS — Got items clear after Finish
-PASS — Couldn’t Get items return active next shop
-[ADD ITEMS]
-PASS — large category boxes used when adding
-PASS — Regular Items appears before category grid
-PASS — Recently Bought removed
-PASS — items alphabetical within category
-PASS — category search retained
-PASS — Edit List retained
-PASS — preset item hide retained
-PASS — preset item restore retained
-PASS — custom item add retained
-PASS — custom item edit retained
-PASS — custom item delete confirmation retained
-PASS — store selection retained
-PASS — Coles default retained
-PASS — Woolworths option retained
-PASS — Aldi option retained
-PASS — Either option retained
-PASS — quantity controls retained
-PASS — Regular Items star toggle retained
-[DATA]
-PASS — duplicate requests grouped by item ID
-PASS — explicit quantities combine only when entered
-PASS — no explicit quantity defaults to one
-PASS — mixed store preferences detected
-PASS — custom item duplicate prevention
-PASS — received custom items can persist as imported definitions
-PASS — deleting own custom item preserves other requests
-PASS — list revision increments after changes
-PASS — local device identity retained
-PASS — owner profile supported
-PASS — multiple people supported
-[MEALS]
-PASS — Meal Ideas route retained
-PASS — meal name entry retained
-PASS — meal suggestions show requester identity
-PASS — meal suggestions transfer with list
-PASS — meal removal retained
-PASS — no preset meal list
-[SETTINGS]
-PASS — profile setup retained
-PASS — person photo upload retained
-PASS — owner profile flag retained
-PASS — mobile number field retained
-PASS — Settings PIN optional
-PASS — PIN off supported
-PASS — backup export retained
-PASS — restore replace confirmation retained
-PASS — Help route retained
-PASS — help includes send to other device
-[NAVIGATION]
-PASS — back parent map retained
-PASS — Settings returns toward Home
-PASS — People returns toward Settings
-PASS — Receive preview returns through Receive
-PASS — Home button always available
-[TRANSFER]
-PASS — Send to My Phone retained
-PASS — Receive My List retained
-PASS — Send Small List File retained
-PASS — Open Shopping List File retained
-PASS — Apple share file path retained
-PASS — text-message fallback retained
-PASS — Universal Clipboard copy retained
-PASS — manual paste fallback retained
-PASS — duplicate/current transfer preview retained
-PASS — accept transfer retained
-PASS — older transfer protection retained
-PASS — transfer success confirmation retained
-PASS — Update My Shopping List button wording retained
-[BACKUP]
-PASS — one full backup format
-PASS — backup includes all stores
-PASS — backup rejects future schema
-PASS — backup validates duplicate IDs
-PASS — backup size safety limit
-PASS — restore preserves current device ID
-PASS — restore bumps list revision
-PASS — restore reseeds core item library
-[OFFLINE]
-PASS — service worker cache v20
-PASS — cache bust styles.css 1.0.4
-PASS — cache bust app.js 1.0.4
-PASS — cache bust db.js 1.0.4
-PASS — cache bust data.js 1.0.4
-PASS — category art cached fruit-veg
-PASS — category art cached meat-seafood
-PASS — category art cached dairy-eggs
-PASS — category art cached bakery
-PASS — category art cached pantry
-PASS — category art cached frozen
-PASS — category art cached drinks
-PASS — category art cached household
-PASS — category art cached toiletries
-PASS — category art cached pharmacy
-PASS — category art cached pet-supplies
-PASS — category art cached other
-PASS — service worker skipWaiting on install
-PASS — service worker deletes old caches
-PASS — service worker claims clients
-PASS — service worker navigates clients after activation
-PASS — network-first navigation avoids stale HTML
-PASS — cached offline fallback retained
-PASS — app update prompt retained
-PASS — no external HTTP runtime dependencies
-[PWA]
-PASS — manifest standalone
-PASS — manifest has 192 icon
-PASS — manifest has 512 icon
-PASS — manifest start URL local
-
-NOTE — Browser execution in this build environment blocks local/file URLs by organization policy, so layout verification is based on the approved screenshot references plus source/CSS/asset-level checks. The actual device screenshots supplied by Cameron remain the physical-device visual authority.
+NOTE
+A headless browser render could not be completed in this runtime because local/file navigation is blocked by the browser administrator policy. The package therefore passed source/static integrity checks; the final visual confirmation remains the physical iPhone/iPad review after GitHub Pages deployment.

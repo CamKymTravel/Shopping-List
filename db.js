@@ -1,4 +1,4 @@
-import { CATEGORIES, PRESET_ITEMS } from "./data.js?v=1.0.4";
+import { CATEGORIES, PRESET_ITEMS } from "./data.js?v=1.0.5";
 
 const DB_NAME = "our-shopping-list";
 const DB_VERSION = 6;

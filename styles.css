@@ -2020,3 +2020,57 @@ body {
 @media (max-width: 430px) {
   .flat-shopping-list { gap: 7px; padding: 7px; }
 }
+
+/* Build 1.0.5 — category artwork fit correction only */
+.category-art-image{max-width:200px!important;height:100px!important;object-fit:contain!important;object-position:center center!important;border-radius:0!important;filter:drop-shadow(0 3px 5px rgba(40,44,52,.08))!important;}
+@media (min-width:700px){.category-art-image{max-width:320px!important;height:142px!important;}}
+@media (max-width:380px){.category-art-image{height:90px!important;}}
+
+
+/* Build 1.0.6 — category detail cleanup: single category title, larger artwork strip. */
+.category-detail-art-strip {
+  min-height: 112px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(0,0,0,.05);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--tint, #f7f4ec) 88%, white), rgba(255,255,255,.94));
+}
+.category-detail-art {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: visible;
+}
+.category-detail-art-image.category-art-image {
+  width: min(100%, 285px) !important;
+  max-width: 285px !important;
+  height: 92px !important;
+  margin: 0 !important;
+  object-fit: contain !important;
+  object-position: left center !important;
+  border-radius: 0 !important;
+  filter: drop-shadow(0 4px 6px rgba(40,44,52,.10)) !important;
+}
+.category-detail-count {
+  flex: 0 0 auto;
+  min-height: 50px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px !important;
+  font-size: 1rem !important;
+  white-space: nowrap;
+}
+@media (min-width: 700px) {
+  .category-detail-art-strip { min-height: 138px; padding: 12px 18px; }
+  .category-detail-art-image.category-art-image { max-width: 390px !important; height: 116px !important; }
+}
+@media (max-width: 430px) {
+  .category-detail-art-strip { min-height: 102px; padding: 8px 12px; gap: 10px; }
+  .category-detail-art-image.category-art-image { max-width: 225px !important; height: 78px !important; }
+  .category-detail-count { min-height: 46px; padding: 6px 11px !important; font-size: .9rem !important; }
+}
